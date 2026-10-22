@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TMark NSW Transport - Car park availability</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="head">
+        <div>
+          <h1>Park&amp;Ride availability</h1>
+          <p class="sub">Live car park occupancy from Transport for NSW</p>
+        </div>
+        <div class="summary" aria-label="Summary">
+          <div><strong id="park-count">-</strong><span>car parks</span></div>
+          <div><strong id="space-count">-</strong><span>spaces free</span></div>
+          <div><strong id="full-count">-</strong><span>full</span></div>
+        </div>
+      </header>
+      <div class="tools">
+        <input id="search" type="search" placeholder="Search by name or facility ID" aria-label="Search car parks" />
+        <button id="refresh" type="button">Refresh</button>
+      </div>
+      <div id="error" class="error" role="alert" hidden></div>
+      <div class="tablewrap">
+        <table>
+          <thead id="table-head"></thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+      <footer id="footer" class="foot">Data &copy; Transport for NSW (CC BY)</footer>
+    </main>
+      <script>
+        const columns = [
+          ["name", "Car park"],
+          ["spots", "Capacity"],
+          ["occupied", "Occupied"],
+          ["available", "Available"],
+          ["percentFull", "Free %"],
+          ["updated", "Updated"],
+        ];
+        const search = document.querySelector("#search");
+        const refresh = document.querySelector("#refresh");
+        const error = document.querySelector("#error");
+        const body = document.querySelector("#table-body");
+        let carparks = [];
+
+        function formatDate(value) {
+          if (!value) return "-";
+          const date = new Date(value);
+          return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString();
+        }
+
+        function render() {
+          const query = search.value.trim().toLowerCase();
+          const matches = carparks.filter((park) => `${park.name} ${park.id} ${park.tfnswId ?? ""}`.toLowerCase().includes(query));
+          body.replaceChildren();
+          for (const park of matches) {
+            const row = document.createElement("tr");
+            for (const [key] of columns) {
+              const cell = document.createElement("td");
+              if (["spots", "occupied", "available", "percentFull"].includes(key)) cell.className = "num";
+              if (key === "name") cell.className = "name";
+              if (key === "updated") cell.className = "muted";
+              const value = park[key];
+              if (key === "percentFull") {
+                const freePercent = value == null ? null : 100 - Number(value);
+                cell.textContent = freePercent == null || !Number.isFinite(freePercent) ? "-" : `${freePercent.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+                if (freePercent != null && Number.isFinite(freePercent)) {
+                  cell.classList.add("free-percent", freePercent === 0 ? "full" : freePercent <= 25 ? "busy" : "open");
+                }
+              } else {
+                cell.textContent = key === "updated" ? formatDate(value) : value == null ? "-" : key === "name" ? value : Number(value).toLocaleString();
+              }
+              if (key === "available") cell.classList.add("avail", value === 0 ? "full" : park.percentFull >= 75 ? "busy" : "open");
+              row.append(cell);
+            }
+            body.append(row);
+          }
+          if (!matches.length) {
+            const row = document.createElement("tr");
+            const cell = document.createElement("td");
+            cell.className = "empty";
+            cell.colSpan = columns.length;
+            cell.textContent = carparks.length ? "No matching car parks" : "No car park data available";
+            row.append(cell);
+            body.append(row);
+          }
+        }
+
+        async function loadCarparks() {
+          refresh.disabled = true;
+          error.hidden = true;
+          try {
+            const response = await fetch("/api/carparks", { headers: { Accept: "application/json" } });
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.error || `Request failed (${response.status})`);
+            carparks = Array.isArray(payload.carparks) ? payload.carparks : [];
+            document.querySelector("#park-count").textContent = carparks.length.toLocaleString();
+            document.querySelector("#space-count").textContent = carparks.reduce((sum, park) => sum + (park.available ?? 0), 0).toLocaleString();
+            document.querySelector("#full-count").textContent = carparks.filter((park) => park.available === 0).length.toLocaleString();
+            document.querySelector("#table-head").innerHTML = `<tr>${columns.map(([key, label]) => `<th${["spots", "occupied", "available", "percentFull"].includes(key) ? ' class="num"' : ""}>${label}</th>`).join("")}</tr>`;
+            document.querySelector("#footer").textContent = `Data © Transport for NSW (CC BY) · Updated ${formatDate(payload.fetchedAt)}`;
+            render();
+          } catch (err) {
+            error.textContent = err.message || "Unable to load car park data.";
+            error.hidden = false;
+          } finally {
+            refresh.disabled = false;
+          }
+        }
+
+        search.addEventListener("input", render);
+        refresh.addEventListener("click", loadCarparks);
+        loadCarparks();
+        window.setInterval(loadCarparks, 300000);
+      </script>
+  </body>
+</html>
