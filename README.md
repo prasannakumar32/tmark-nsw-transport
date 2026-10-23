@@ -1,6 +1,6 @@
 # TMark NSW Transport
 
-React frontend and a built-in Node.js HTTP server for Transport for NSW Park&Ride occupancy.
+Frontend and a built-in Node.js HTTP server for Transport for NSW car park occupancy.
 
 ```
 tmark-nsw-transport/

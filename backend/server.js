@@ -126,9 +126,16 @@ function normalise(raw) {
   const available = spots !== null && occupied !== null ? Math.max(spots - occupied, 0) : null;
   const percentFull =
     spots && occupied !== null ? Math.min(Math.round((occupied / spots) * 100), 100) : null;
+  const name = String(raw.facility_name ?? "")
+    .replace(/^\s*park\s*(?:&|and)\s*ride\s*[-–—:|,;]?\s*/i, "")
+    .replace(/\s*\(\s*park\s*(?:&|and)\s*ride\s*\)\s*/gi, " ")
+    .replace(/\s*park\s*(?:&|and)\s*ride\s*/gi, " ")
+    .replace(/\s+/g, " ")
+    .replace(/^[\s,;:|–—-]+|[\s,;:|–—-]+$/g, "")
+    .trim();
   return {
-    id: String(raw.facility_id ?? raw.tfnsw_facility_id ?? raw.facility_name),
-    name: raw.facility_name ?? "Unknown",
+    id: String(raw.facility_id ?? raw.tfnsw_facility_id ?? (name || "unknown")),
+    name: name || "Unknown",
     tfnswId: raw.tfnsw_facility_id ?? null,
     spots,
     occupied,
