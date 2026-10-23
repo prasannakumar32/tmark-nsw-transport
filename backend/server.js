@@ -27,11 +27,7 @@ const {
   CACHE_SECONDS = 30,
 } = process.env;
 
-const frontendDir = path.resolve(backendDir, "../frontend");
-const reactVendorFiles = {
-  "/vendor/react.production.min.js": path.join(frontendDir, "node_modules/react/umd/react.production.min.js"),
-  "/vendor/react-dom.production.min.js": path.join(frontendDir, "node_modules/react-dom/umd/react-dom.production.min.js"),
-};
+const frontendDir = path.resolve(backendDir, "../frontend/dist");
 
 function sendJson(res, status, body) {
   const content = JSON.stringify(body);
@@ -141,7 +137,6 @@ function normalise(raw) {
     occupied,
     available,
     percentFull,
-    zones: Array.isArray(raw.zones) ? raw.zones.length : 0,
     updated: normaliseTimestamp(raw.message_date ?? raw.time),
   };
 }
@@ -217,18 +212,18 @@ async function handleRequest(req, res) {
     } catch {
       return sendJson(res, 400, { error: "Invalid URL path" });
     }
-    if (pathname.startsWith("/vendor/") && !Object.hasOwn(reactVendorFiles, pathname)) {
+    if (pathname.startsWith("/vendor/")) {
       return res.writeHead(404).end("Not found");
     }
-    const filePath = reactVendorFiles[pathname] ?? path.resolve(frontendDir, `.${pathname}`);
+    const filePath = path.resolve(frontendDir, `.${pathname}`);
     const relativePath = path.relative(frontendDir, filePath);
-    if (!Object.hasOwn(reactVendorFiles, pathname) && (relativePath.startsWith("..") || path.isAbsolute(relativePath))) {
+    if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
       return sendJson(res, 400, { error: "Invalid URL path" });
     }
     if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
       return sendFile(req, res, filePath);
     }
-    if (!pathname.startsWith("/api/") && !pathname.startsWith("/vendor/")) {
+    if (!pathname.startsWith("/api/")) {
       return sendFile(req, res, path.join(frontendDir, "index.html"));
     }
   }

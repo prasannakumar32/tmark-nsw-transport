@@ -1,37 +1,40 @@
 # TMark NSW Transport
 
-Frontend and a built-in Node.js HTTP server for Transport for NSW car park occupancy.
+React frontend built with Webpack and a built-in Node.js API server for Transport for NSW car park occupancy.
 
 ```
 tmark-nsw-transport/
 |-- backend/  Node.js HTTP server and API (keeps your API key off the browser)
-`-- frontend/ React UI and styles
+`-- frontend/ React application and Webpack configuration
 ```
 
-##  Get an API key
+## Setup
+
+Requires Node.js 18 or newer.
+
 1. Sign up at https://opendata.transport.nsw.gov.au
-3. Copy the API key
+2. Copy the API key
+3. Install dependencies from the repository root:
 
-npm run install:all
-cp backend/.env.example backend/.env   # Windows: copy backend\.env.example backend\.env
+   ```sh
+   npm install
+   ```
 
-# edit backend/.env and set TFNSW_API_KEY=... apikey  + "url"
-```
+4. Copy `backend/.env.example` to `backend/.env` and set `TFNSW_API_KEY` to your key.
 
-The browser entry document provides the React mount point and loads the locally installed React runtime; the UI is rendered by React.
-
-## 3. Run (development)
+## Development
 ```bash
 npm run dev
 ```
-- Starts the Node.js server, which serves both the React UI and API.
-- UI: http://localhost:4000
+- Starts the Node.js API and Webpack file watcher together.
+- Rebuilds the React bundle when frontend files change; refresh http://localhost:4000 to see updates.
 - API: http://localhost:4000/api/carparks
 
-## 4. Run (production, single server)
+## Production
 ```bash
-npm start        # Node.js serves the React frontend and API on http://localhost:4000
+npm start
 ```
+- Builds the React app and serves it with the API at http://localhost:4000.
 
 ## How it works
 - `GET /api/carparks` (this project) calls Transport NSW `GET /v1/carpark/full-list` with header
