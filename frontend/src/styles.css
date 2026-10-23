@@ -38,6 +38,9 @@ h1 { margin: 0 0 7px; color: var(--ink); font-size: clamp(25px, 3vw, 32px); font
 .tablewrap { overflow-x: auto; border: 1px solid #dfe8e2; border-radius: 12px; background: var(--surface); box-shadow: 0 8px 28px rgb(35 72 53 / 5%); }
 table { width: 100%; min-width: 820px; table-layout: fixed; border-collapse: collapse; }
 th { padding: 15px 16px; background: #f3f7f4; color: #63736a; font-size: 11px; font-weight: 700; letter-spacing: .055em; text-align: left; text-transform: uppercase; }
+.sort-button { display: flex; align-items: center; gap: 6px; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; letter-spacing: inherit; text-align: inherit; text-transform: inherit; cursor: pointer; }
+.num .sort-button { justify-content: flex-end; }
+.sort-indicator { min-width: 8px; color: var(--accent); font-size: 13px; }
 th:first-child, td:first-child { width: 30%; }
 th:nth-child(2), td:nth-child(2),
 th:nth-child(3), td:nth-child(3),

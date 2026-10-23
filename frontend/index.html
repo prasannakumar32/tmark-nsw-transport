@@ -44,18 +44,56 @@
         const search = document.querySelector("#search");
         const refresh = document.querySelector("#refresh");
         const error = document.querySelector("#error");
+        const tableHead = document.querySelector("#table-head");
         const body = document.querySelector("#table-body");
         let carparks = [];
+        let sortKey = "name";
+        let sortDirection = 1;
 
         function formatDate(value) {
           if (!value) return "-";
           const date = new Date(value);
-          return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString();
+          return Number.isNaN(date.getTime())
+            ? "-"
+            : date.toLocaleString("en-AU", { timeZone: "Australia/Sydney" });
+        }
+
+        function renderTableHead() {
+          tableHead.innerHTML = `<tr>${columns.map(([key, label]) => {
+            const isSorted = key === sortKey;
+            const direction = sortDirection === 1 ? "ascending" : "descending";
+            const indicator = isSorted ? (sortDirection === 1 ? "↑" : "↓") : "";
+            return `<th${["spots", "occupied", "available", "percentFull"].includes(key) ? ' class="num"' : ""} aria-sort="${isSorted ? direction : "none"}"><button class="sort-button" type="button" data-sort-key="${key}" aria-label="Sort by ${label}${isSorted ? `, ${direction}` : ""}">${label}<span class="sort-indicator" aria-hidden="true">${indicator}</span></button></th>`;
+          }).join("")}</tr>`;
+        }
+
+        function sortValue(park, key) {
+          const value = park[key];
+          if (value == null) return null;
+          if (key === "percentFull") {
+            const percentFull = Number(value);
+            return Number.isFinite(percentFull) ? 100 - percentFull : null;
+          }
+          if (key === "updated") {
+            const timestamp = new Date(value).getTime();
+            return Number.isFinite(timestamp) ? timestamp : null;
+          }
+          return typeof value === "number" ? value : String(value);
         }
 
         function render() {
           const query = search.value.trim().toLowerCase();
-          const matches = carparks.filter((park) => `${park.name} ${park.id} ${park.tfnswId ?? ""}`.toLowerCase().includes(query));
+          const matches = carparks
+            .filter((park) => `${park.name} ${park.id} ${park.tfnswId ?? ""}`.toLowerCase().includes(query))
+            .sort((a, b) => {
+              const left = sortValue(a, sortKey);
+              const right = sortValue(b, sortKey);
+              if (left == null || right == null) return left == null ? (right == null ? 0 : 1) : -1;
+              const comparison = typeof left === "string" && typeof right === "string"
+                ? left.localeCompare(right)
+                : left - right;
+              return comparison * sortDirection;
+            });
           body.replaceChildren();
           for (const park of matches) {
             const row = document.createElement("tr");
@@ -90,6 +128,19 @@
           }
         }
 
+        tableHead.addEventListener("click", (event) => {
+          const button = event.target.closest("button[data-sort-key]");
+          if (!button) return;
+          if (button.dataset.sortKey === sortKey) {
+            sortDirection *= -1;
+          } else {
+            sortKey = button.dataset.sortKey;
+            sortDirection = 1;
+          }
+          renderTableHead();
+          render();
+        });
+
         async function loadCarparks() {
           refresh.disabled = true;
           error.hidden = true;
@@ -101,7 +152,7 @@
             document.querySelector("#park-count").textContent = carparks.length.toLocaleString();
             document.querySelector("#space-count").textContent = carparks.reduce((sum, park) => sum + (park.available ?? 0), 0).toLocaleString();
             document.querySelector("#full-count").textContent = carparks.filter((park) => park.available === 0).length.toLocaleString();
-            document.querySelector("#table-head").innerHTML = `<tr>${columns.map(([key, label]) => `<th${["spots", "occupied", "available", "percentFull"].includes(key) ? ' class="num"' : ""}>${label}</th>`).join("")}</tr>`;
+            renderTableHead();
             document.querySelector("#footer").textContent = `Data © Transport for NSW (CC BY) · Updated ${formatDate(payload.fetchedAt)}`;
             render();
           } catch (err) {
