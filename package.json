@@ -4,22 +4,14 @@
   "private": true,
   "description": "React frontend and native Node.js server for NSW car park occupancy",
   "workspaces": [
-    "backend",
     "frontend"
   ],
   "engines": {
     "node": ">=18"
   },
   "scripts": {
-    "predev": "npm run build",
-    "dev": "concurrently -k -n api,web -c cyan,green \"npm run dev:api\" \"npm run dev:web\"",
-    "dev:api": "npm run dev --workspace=backend",
-    "dev:web": "npm run dev --workspace=frontend",
+    "dev": "npm run build && node --watch backend/server.js",
     "build": "npm run build --workspace=frontend",
-    "prestart": "npm run build",
-    "start": "npm run start --workspace=backend"
-  },
-  "devDependencies": {
-    "concurrently": "^9.2.1"
+    "start": "npm run build && node backend/server.js"
   }
 }

@@ -26,8 +26,7 @@ Requires Node.js 18 or newer.
 ```bash
 npm run dev
 ```
-- Starts the Node.js API and Webpack file watcher together.
-- Rebuilds the React bundle when frontend files change; refresh http://localhost:4000 to see updates.
+- Builds the React app, then starts the Node.js API at http://localhost:4000.
 - API: http://localhost:4000/api/carparks
 
 ## Production
