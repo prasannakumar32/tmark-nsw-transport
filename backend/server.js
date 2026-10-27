@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import path from "node:path";
 import fs from "node:fs";
+import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 
 const backendDir = path.dirname(fileURLToPath(import.meta.url));
@@ -261,10 +262,24 @@ async function fetchCarparksFromSupabase() {
     "id,facility_id,facility_name,suburb,address,total_spots,occupied,available,message_date,updated_at",
   );
   url.searchParams.set("order", "facility_name.asc");
-  const rows = await requestJson(url, {
-    headers: supabaseHeaders(),
-  }, "Supabase");
-  if (!Array.isArray(rows)) throw new Error("Supabase returned an invalid car park list.");
+  const startedAt = new Date();
+  const started = performance.now();
+  let rows;
+  try {
+    rows = await requestJson(url, {
+      headers: supabaseHeaders(),
+    }, "Supabase");
+    if (!Array.isArray(rows)) throw new Error("Supabase returned an invalid car park list.");
+  } catch (error) {
+    console.error(
+      `[Supabase] Fetch failed (started ${startedAt.toISOString()}, elapsed ${(performance.now() - started).toFixed(0)} ms):`,
+      error.message,
+    );
+    throw error;
+  }
+  console.info(
+    `[Supabase] Fetched ${rows.length} car parks (started ${startedAt.toISOString()}, completed ${new Date().toISOString()}, elapsed ${(performance.now() - started).toFixed(0)} ms).`,
+  );
   return rows.map((row) => {
     const percentFull = row.total_spots > 0 && row.occupied != null
       ? Math.min(Math.round((row.occupied / row.total_spots) * 100), 100)
@@ -314,14 +329,27 @@ async function syncCarparks() {
     const facilities = await fetchRequestedFacilities();
     const url = new URL(`/rest/v1/${tableName}`, requiredEnv(SUPABASE_URL, "SUPABASE_URL"));
     url.searchParams.set("on_conflict", "id");
-    await requestJson(url, {
-      method: "POST",
-      headers: supabaseHeaders({
-        "Content-Type": "application/json",
-        Prefer: "resolution=merge-duplicates,return=minimal",
-      }),
-      body: JSON.stringify(facilities),
-    }, "Supabase");
+    const startedAt = new Date();
+    const started = performance.now();
+    try {
+      await requestJson(url, {
+        method: "POST",
+        headers: supabaseHeaders({
+          "Content-Type": "application/json",
+          Prefer: "resolution=merge-duplicates,return=minimal",
+        }),
+        body: JSON.stringify(facilities),
+      }, "Supabase");
+    } catch (error) {
+      console.error(
+        `[Supabase] Upsert failed for ${facilities.length} car parks (started ${startedAt.toISOString()}, elapsed ${(performance.now() - started).toFixed(0)} ms):`,
+        error.message,
+      );
+      throw error;
+    }
+    console.info(
+      `[Supabase] Upsert successful for ${facilities.length} car parks (facility IDs: ${facilities.map(({ facility_id }) => facility_id).join(", ")}; started ${startedAt.toISOString()}, completed ${new Date().toISOString()}, elapsed ${(performance.now() - started).toFixed(0)} ms).`,
+    );
     rateLimitCount = 0;
     rateLimitUntil = 0;
     return facilities.length;
