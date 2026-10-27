@@ -6,7 +6,7 @@ const columns = [
   { key: "occupied", label: "Occupied", numeric: true },
   { key: "available", label: "Available", numeric: true },
   { key: "percentFull", label: "Free %", numeric: true },
-  { key: "updated", label: "Updated" },
+  { key: "updated", label: "Data time" },
 ];
 
 function formatDate(value) {
@@ -14,7 +14,15 @@ function formatDate(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? "-"
-    : date.toLocaleString("en-AU", { timeZone: "Australia/Sydney" });
+    : new Intl.DateTimeFormat("en-AU", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+      timeZone: "Australia/Sydney",
+    }).format(date);
 }
 
 function getSortValue(park, key) {
@@ -52,14 +60,24 @@ function SortableHeader({ column, sortKey, sortDirection, onSort }) {
 }
 
 function CarParkRow({ park }) {
+  const location = [park.address, park.suburb].filter(Boolean).join(", ");
+
   return (
     <tr>
       {columns.map(({ key, numeric }) => {
         const value = park[key];
         const classNames = [];
         if (numeric) classNames.push("num");
-        if (key === "name") classNames.push("name");
         if (key === "updated") classNames.push("muted");
+
+        if (key === "name") {
+          return (
+            <td key={key}>
+              <span className="name">{value ?? "-"}</span>
+              {location && <span className="muted location">{location}</span>}
+            </td>
+          );
+        }
 
         if (key === "percentFull") {
           const freePercent = value == null ? null : 100 - Number(value);
@@ -99,11 +117,12 @@ export default function App() {
   const [error, setError] = useState("");
   const [fetchedAt, setFetchedAt] = useState(null);
 
-  const loadCarparks = useCallback(async () => {
+  const loadCarparks = useCallback(async (sync = false) => {
     setIsLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/carparks", {
+      const response = await fetch(sync ? "/api/carparks/sync" : "/api/carparks", {
+        method: sync ? "POST" : "GET",
         headers: { Accept: "application/json" },
       });
       const payload = await response.json();
@@ -130,7 +149,9 @@ export default function App() {
     const normalizedQuery = query.trim().toLowerCase();
     return carparks
       .filter((park) =>
-        `${park.name} ${park.id} ${park.tfnswId ?? ""}`.toLowerCase().includes(normalizedQuery),
+        `${park.name} ${park.id} ${park.tfnswId ?? ""} ${park.suburb ?? ""} ${park.address ?? ""}`
+          .toLowerCase()
+          .includes(normalizedQuery),
       )
       .sort((a, b) => {
         const left = getSortValue(a, sortKey);
@@ -173,12 +194,12 @@ export default function App() {
       <div className="tools">
         <input
           type="search"
-          placeholder="Search by name or facility ID"
+          placeholder="Search by name, location, or facility ID"
           aria-label="Search car parks"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
-        <button type="button" onClick={loadCarparks} disabled={isLoading}>
+        <button type="button" onClick={() => loadCarparks(true)} disabled={isLoading}>
           {isLoading ? "Loading..." : "Refresh"}
         </button>
       </div>
@@ -216,7 +237,7 @@ export default function App() {
       </div>
       <footer className="foot">
         Data © Transport for NSW (CC BY)
-        {fetchedAt ? ` · Updated ${formatDate(fetchedAt)}` : ""}
+        {fetchedAt ? ` · Checked ${formatDate(fetchedAt)}` : ""}
       </footer>
     </main>
   );

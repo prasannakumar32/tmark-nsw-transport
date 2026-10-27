@@ -55,6 +55,7 @@ tbody tr:nth-child(even) { background: #fbfcfb; }
 tbody tr:hover { background: #f1f7f3; }
 .name { color: var(--ink); font-weight: 650; }
 .muted { color: var(--muted); font-size: 12px; }
+.location { display: block; margin-top: 4px; }
 .avail { font-weight: 650; }
 .avail.open { color: var(--open); }
 .avail.busy { color: var(--busy); }

@@ -10,8 +10,8 @@
     "node": ">=18"
   },
   "scripts": {
-    "dev": "npm run build && node --watch backend/server.js",
+    "dev": "node --watch backend/server.js",
     "build": "npm run build --workspace=frontend",
-    "start": "npm run build && node backend/server.js"
+    "start": "node backend/server.js"
   }
 }
