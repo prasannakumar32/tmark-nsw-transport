@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const columns = [
   { key: "name", label: "Car park" },
@@ -110,12 +110,17 @@ function CarParkRow({ park }) {
 export default function App() {
   const [carparks, setCarparks] = useState([]);
   const [query, setQuery] = useState("");
+  const [selectedSuburbs, setSelectedSuburbs] = useState(null);
+  const [draftSuburbs, setDraftSuburbs] = useState(null);
+  const [isSuburbMenuOpen, setIsSuburbMenuOpen] = useState(false);
   const [sortKey, setSortKey] = useState("name");
   const [sortDirection, setSortDirection] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState("");
   const [fetchedAt, setFetchedAt] = useState(null);
+  const suburbTriggerRef = useRef(null);
+  const firstSuburbOptionRef = useRef(null);
 
   const loadCarparks = useCallback(async (sync = false) => {
     setIsLoading(true);
@@ -145,9 +150,41 @@ export default function App() {
     return () => window.clearInterval(intervalId);
   }, [loadCarparks]);
 
+  useEffect(() => {
+    if (!isSuburbMenuOpen) return undefined;
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        setIsSuburbMenuOpen(false);
+      }
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    firstSuburbOptionRef.current?.focus();
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+      suburbTriggerRef.current?.focus();
+    };
+  }, [isSuburbMenuOpen]);
+
+  const suburbs = useMemo(
+    () => [...new Set(carparks.map((park) => park.suburb?.trim()).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b)),
+    [carparks],
+  );
+  const suburbFilteredCarparks = useMemo(
+    () => selectedSuburbs === null
+      ? carparks
+      : carparks.filter((park) => selectedSuburbs.includes(park.suburb?.trim())),
+    [carparks, selectedSuburbs],
+  );
+
   const matches = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    return carparks
+    return suburbFilteredCarparks
       .filter((park) =>
         `${park.name} ${park.id} ${park.tfnswId ?? ""} ${park.suburb ?? ""} ${park.address ?? ""}`
           .toLowerCase()
@@ -164,7 +201,7 @@ export default function App() {
           : left - right;
         return comparison * sortDirection;
       });
-  }, [carparks, query, sortDirection, sortKey]);
+  }, [suburbFilteredCarparks, query, sortDirection, sortKey]);
 
   function handleSort(key) {
     if (key === sortKey) {
@@ -175,8 +212,8 @@ export default function App() {
     }
   }
 
-  const availableSpaces = carparks.reduce((sum, park) => sum + (park.available ?? 0), 0);
-  const fullCarparks = carparks.filter((park) => park.available === 0).length;
+  const selectedSuburbCount = selectedSuburbs === null ? suburbs.length : selectedSuburbs.length;
+  const draftSuburbCount = draftSuburbs === null ? suburbs.length : draftSuburbs.length;
 
   return (
     <main className="page">
@@ -184,11 +221,6 @@ export default function App() {
         <div>
           <h1>Car park availability</h1>
           <p className="sub">Live car park occupancy from Transport for NSW</p>
-        </div>
-        <div className="summary" aria-label="Summary">
-          <div><strong>{hasLoaded ? carparks.length.toLocaleString() : "-"}</strong><span>car parks</span></div>
-          <div><strong>{hasLoaded ? availableSpaces.toLocaleString() : "-"}</strong><span>spaces free</span></div>
-          <div><strong>{hasLoaded ? fullCarparks.toLocaleString() : "-"}</strong><span>full</span></div>
         </div>
       </header>
       <div className="tools">
@@ -203,6 +235,131 @@ export default function App() {
           {isLoading ? "Loading..." : "Refresh"}
         </button>
       </div>
+      <div className="station-toolbar">
+        <button
+          ref={suburbTriggerRef}
+          className="suburb-trigger"
+          type="button"
+          aria-expanded={isSuburbMenuOpen}
+          aria-controls="suburb-dialog"
+          onClick={() => {
+            setDraftSuburbs(selectedSuburbs);
+            setIsSuburbMenuOpen(true);
+          }}
+        >
+          <span className="suburb-icon" aria-hidden="true">⌖</span>
+          <span>Suburbs</span>
+          <span className="suburb-count">
+            {selectedSuburbs === null ? "All" : `${selectedSuburbCount}/${suburbs.length}`}
+          </span>
+          <span className={`suburb-chevron${isSuburbMenuOpen ? " is-open" : ""}`} aria-hidden="true">⌄</span>
+        </button>
+        <span className="suburb-hint">
+          {selectedSuburbs === null ? "Showing all suburbs" : `Showing ${selectedSuburbCount} selected`}
+        </span>
+      </div>
+      {isSuburbMenuOpen && (
+        <div
+          className="suburb-backdrop"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setDraftSuburbs(selectedSuburbs);
+              setIsSuburbMenuOpen(false);
+            }
+          }}
+        >
+          <section
+            className="suburb-menu"
+            id="suburb-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="suburb-dialog-title"
+            onKeyDown={(event) => {
+              if (event.key !== "Tab") return;
+              const focusableItems = event.currentTarget.querySelectorAll("button:not(:disabled), input:not(:disabled)");
+              const firstItem = focusableItems[0];
+              const lastItem = focusableItems[focusableItems.length - 1];
+              if (event.shiftKey && document.activeElement === firstItem) {
+                event.preventDefault();
+                lastItem?.focus();
+              } else if (!event.shiftKey && document.activeElement === lastItem) {
+                event.preventDefault();
+                firstItem?.focus();
+              }
+            }}
+          >
+            <div className="suburb-menu-heading">
+              <div>
+                <span className="suburb-dialog-eyebrow">CAR PARK FILTER</span>
+                <h2 id="suburb-dialog-title">Select suburbs</h2>
+                <p>{draftSuburbCount} of {suburbs.length} suburbs selected</p>
+              </div>
+              <button
+                className="suburb-close"
+                type="button"
+                aria-label="Close suburb selector"
+                onClick={() => {
+                  setDraftSuburbs(selectedSuburbs);
+                  setIsSuburbMenuOpen(false);
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="suburb-menu-actions">
+              <span>Choose the areas to include in your car park results.</span>
+              <div>
+                <button type="button" onClick={() => setDraftSuburbs(null)}>Select all</button>
+                <button type="button" onClick={() => setDraftSuburbs([])}>Clear</button>
+              </div>
+            </div>
+            <div className="suburb-options" role="group" aria-label="Available suburbs">
+              {suburbs.length ? suburbs.map((suburb, index) => {
+                const isSelected = draftSuburbs === null || draftSuburbs.includes(suburb);
+                return (
+                  <label className="suburb-option" key={suburb}>
+                    <input
+                      ref={index === 0 ? firstSuburbOptionRef : undefined}
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => {
+                        const currentSelection = draftSuburbs ?? suburbs;
+                        const nextSelection = isSelected
+                          ? currentSelection.filter((item) => item !== suburb)
+                          : [...currentSelection, suburb];
+                        setDraftSuburbs(nextSelection.length === suburbs.length ? null : nextSelection);
+                      }}
+                    />
+                    <span>{suburb}</span>
+                  </label>
+                );
+              }) : <p className="suburb-empty">No suburbs available</p>}
+            </div>
+            <div className="suburb-menu-footer">
+              <button
+                className="suburb-cancel"
+                type="button"
+                onClick={() => {
+                  setDraftSuburbs(selectedSuburbs);
+                  setIsSuburbMenuOpen(false);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="suburb-save"
+                type="button"
+                onClick={() => {
+                  setSelectedSuburbs(draftSuburbs);
+                  setIsSuburbMenuOpen(false);
+                }}
+              >
+                Save selection
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
       {error && <div className="error" role="alert">{error}</div>}
       <div className="tablewrap">
         <table>
@@ -224,11 +381,13 @@ export default function App() {
             {!matches.length && (
               <tr>
                 <td className="empty" colSpan={columns.length}>
-                  {isLoading && !hasLoaded
-                    ? "Loading car park data..."
-                    : carparks.length
-                      ? "No matching car parks"
-                      : "No car park data available"}
+                  {selectedSuburbs !== null && selectedSuburbCount === 0
+                    ? "Select at least one suburb to view car parks"
+                    : isLoading && !hasLoaded
+                      ? "Loading car park data..."
+                      : suburbFilteredCarparks.length
+                        ? "No matching car parks"
+                        : "No car park data available"}
                 </td>
               </tr>
             )}
