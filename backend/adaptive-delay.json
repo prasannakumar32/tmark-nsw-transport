@@ -1,0 +1,11 @@
+{
+  "timeZone": "Australia/Sydney",
+  "windows": [
+    { "startHour": 0, "endHour": 5, "delaySeconds": 180 },
+    { "startHour": 5, "endHour": 10, "delaySeconds": 25 },
+    { "startHour": 10, "endHour": 14, "delaySeconds": 40 },
+    { "startHour": 14, "endHour": 18, "delaySeconds": 25 },
+    { "startHour": 18, "endHour": 20, "delaySeconds": 120 },
+    { "startHour": 20, "endHour": 24, "delaySeconds": 180 }
+  ]
+}

@@ -30,6 +30,29 @@ const {
   PORT = 4000,
 } = process.env;
 
+const adaptiveDelayConfigPath = path.join(backendDir, "adaptive-delay.json");
+const adaptiveDelayConfig = JSON.parse(fs.readFileSync(adaptiveDelayConfigPath, "utf8"));
+if (!adaptiveDelayConfig || typeof adaptiveDelayConfig.timeZone !== "string"
+  || !adaptiveDelayConfig.timeZone || !Array.isArray(adaptiveDelayConfig.windows)
+  || adaptiveDelayConfig.windows.length === 0) {
+  throw new Error(`Invalid adaptive delay configuration in ${adaptiveDelayConfigPath}.`);
+}
+
+let previousWindowEnd = 0;
+const adaptiveDelayWindows = adaptiveDelayConfig.windows.map((window) => {
+  const { startHour, endHour, delaySeconds } = window;
+  if (!Number.isInteger(startHour) || !Number.isInteger(endHour)
+    || startHour !== previousWindowEnd || endHour <= startHour || endHour > 24
+    || !Number.isFinite(delaySeconds) || delaySeconds <= 0) {
+    throw new Error(`Invalid or incomplete adaptive delay window in ${adaptiveDelayConfigPath}.`);
+  }
+  previousWindowEnd = endHour;
+  return { startHour, endHour, delayMilliseconds: delaySeconds * 1000 };
+});
+if (previousWindowEnd !== 24) {
+  throw new Error(`Adaptive delay windows must cover all 24 hours in ${adaptiveDelayConfigPath}.`);
+}
+
 const supabaseKey = SUPABASE_SECRET_KEY || SUPABASE_SERVICE_ROLE_KEY;
 const frontendDir = path.resolve(backendDir, "../frontend/dist");
 const facilityIds = ["24", "26", "27", "28", "29", "30", "31"];
@@ -96,7 +119,7 @@ const sydneyTimeFormat = new Intl.DateTimeFormat("en-AU", {
   timeZoneName: "shortOffset",
 });
 const sydneyHourFormat = new Intl.DateTimeFormat("en-AU", {
-  timeZone: "Australia/Sydney",
+  timeZone: adaptiveDelayConfig.timeZone,
   hour: "numeric",
   hourCycle: "h23",
 });
@@ -104,15 +127,14 @@ const sydneyHourFormat = new Intl.DateTimeFormat("en-AU", {
 function scheduledSyncDelayMilliseconds(timestamp = Date.now()) {
   const hourPart = sydneyHourFormat.formatToParts(new Date(timestamp))
     .find((part) => part.type === "hour");
-  if (!hourPart) throw new Error("Unable to determine the current Sydney hour.");
+  if (!hourPart) throw new Error("Unable to determine the current configured timezone hour.");
 
   const hour = Number(hourPart.value);
-  if (!Number.isFinite(hour)) throw new Error("Unable to determine the current Sydney hour.");
+  if (!Number.isFinite(hour)) throw new Error("Unable to determine the current configured timezone hour.");
 
-  if ((hour >= 5 && hour < 10) || (hour >= 14 && hour < 18)) return 25_000;
-  if (hour >= 10 && hour < 14) return 40_000;
-  if (hour >= 18 && hour < 20) return 2 * 60_000;
-  return 3 * 60_000;
+  const window = adaptiveDelayWindows.find(({ startHour, endHour }) => hour >= startHour && hour < endHour);
+  if (!window) throw new Error(`No adaptive delay configured for hour ${hour}.`);
+  return window.delayMilliseconds;
 }
 
 function sydneyOffsetMilliseconds(timestamp) {
