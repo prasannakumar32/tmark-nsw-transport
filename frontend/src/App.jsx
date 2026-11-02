@@ -138,7 +138,13 @@ export default function App() {
     <main className="page">
       <header className="head">
         <div className="page-heading">
-          <h1>Car park availability</h1>
+          <div className="heading-row">
+            <h1>Car park availability</h1>
+            <span className="live-badge" aria-label="Live car park data">
+              <span className="live-dot" aria-hidden="true" />
+              Live
+            </span>
+          </div>
           <p className="sub">Live car park occupancy from Transport for NSW</p>
         </div>
       </header>
