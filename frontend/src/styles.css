@@ -126,7 +126,7 @@ h1 { margin: 0 0 8px; color: var(--ink); font-size: clamp(30px, 4vw, 40px); font
 .tablewrap {
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 16px 16px 0 0;
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(6px);
   box-shadow: var(--shadow);
@@ -159,11 +159,144 @@ tbody tr:hover { background: #f3f8f5; }
 .availability-percent { display: block; margin-top: 5px; color: #ad6b12; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .mobile-capacity { display: none; }
 .empty { padding: 42px 24px; color: var(--muted); text-align: center; }
-.foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 15px 2px 0; color: #84938d; font-size: 11px; }
-.legend { display: inline-flex; align-items: center; gap: 7px; color: #62766d; }
-.legend i { width: 8px; height: 8px; border-radius: 50%; }
-.legend-free { margin-left: 6px; background: #20a66b; }
-.legend-occupied { background: #e45b66; }
+.page-footer {
+  width: 100%;
+}
+.footer-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 52px;
+  padding: 12px 18px;
+  border: 1px solid var(--border);
+  border-top: 0;
+  border-radius: 0 0 16px 16px;
+  background: linear-gradient(180deg, #123d42 0%, #0d2b31 100%);
+  color: #edf7f8;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+.footer-divider {
+  color: rgba(237, 247, 248, 0.7);
+}
+.footer-bar strong {
+  font-weight: 700;
+  color: #fff;
+}
+.page-footer a {
+  color: #2dd8d2;
+  text-decoration: none;
+  font-weight: 600;
+}
+.page-footer .footer-company-link strong { color: #60a5fa; }
+.page-footer a:hover { text-decoration: underline; }
+.footer-disclaimer-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #edf7f8;
+  font: inherit;
+  cursor: pointer;
+}
+.footer-tooltip {
+  position: absolute;
+  z-index: 10;
+  right: 0;
+  bottom: calc(100% + 5px);
+  width: min(360px, calc(100vw - 32px));
+  padding: 13px 15px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: #202426;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: left;
+  box-shadow: 0 8px 22px rgba(15, 29, 33, 0.2);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: opacity 140ms ease, transform 140ms ease, visibility 140ms ease;
+}
+.footer-tooltip::after {
+  position: absolute;
+  right: 14px;
+  bottom: -6px;
+  width: 10px;
+  height: 10px;
+  background: #202426;
+  content: "";
+  transform: rotate(45deg);
+}
+.footer-disclaimer-link[aria-expanded="true"] .footer-tooltip,
+.footer-disclaimer-link:focus-visible .footer-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+.footer-disclaimer-link:focus-visible {
+  outline: 2px solid #7fceb7;
+  outline-offset: 4px;
+  border-radius: 3px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .footer-disclaimer-link:hover .footer-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+}
+.footer-info-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: #0d2b31;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+@media (max-width: 720px) {
+  .footer-bar {
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 12px;
+    font-size: 13px;
+    text-align: center;
+  }
+  .footer-disclaimer-link {
+    position: static;
+  }
+  .footer-divider {
+    display: none;
+  }
+  .footer-tooltip {
+    right: 12px;
+    bottom: calc(100% + 8px);
+    left: 12px;
+    width: auto;
+    padding: 12px 14px;
+    font-size: 12px;
+  }
+  .footer-tooltip::after {
+    right: auto;
+    left: calc(50% - 5px);
+  }
+}
 
 @media (max-width: 760px) {
   .page { width: calc(100% - 28px); padding-top: 24px; }
@@ -219,6 +352,7 @@ tbody tr:hover { background: #f3f8f5; }
   .tablewrap {
     overflow: visible;
     border: 0;
+    border-radius: 0;
     background: transparent;
     box-shadow: none;
     backdrop-filter: none;

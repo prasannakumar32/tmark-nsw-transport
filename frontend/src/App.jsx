@@ -74,8 +74,10 @@ export default function App() {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState("");
   const [fetchedAt, setFetchedAt] = useState(null);
+  const [isDisclaimerOpen, setIsDisclaimerOpen] = useState(false);
   const suburbTriggerRef = useRef(null);
   const firstSuburbOptionRef = useRef(null);
+  const disclaimerTriggerRef = useRef(null);
 
   const loadCarparks = useCallback(async () => {
     setIsLoading(true);
@@ -121,6 +123,29 @@ export default function App() {
       suburbTriggerRef.current?.focus();
     };
   }, [isSuburbMenuOpen]);
+
+  useEffect(() => {
+    if (!isDisclaimerOpen) return undefined;
+
+    function handleDismiss(event) {
+      if (event.type === "keydown" && event.key === "Escape") {
+        setIsDisclaimerOpen(false);
+        disclaimerTriggerRef.current?.focus();
+      } else if (
+        event.type === "pointerdown"
+        && !disclaimerTriggerRef.current?.contains(event.target)
+      ) {
+        setIsDisclaimerOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleDismiss);
+    document.addEventListener("pointerdown", handleDismiss);
+    return () => {
+      document.removeEventListener("keydown", handleDismiss);
+      document.removeEventListener("pointerdown", handleDismiss);
+    };
+  }, [isDisclaimerOpen]);
 
   const suburbs = useMemo(
     () => [...new Set(carparks.map((park) => park.suburb?.trim()).filter(Boolean))]
@@ -312,12 +337,40 @@ export default function App() {
           </table>
         </div>
       </div>
-      <footer className="foot">
-        <span>
-          Source: Transport for NSW
-          {formattedFetchTime && ` · Data last updated ${formattedFetchTime}`}
-        </span>
-        <span className="legend"><i className="legend-free" /> Available <i className="legend-occupied" /> Occupied</span>
+      <footer className="page-footer">
+        <div className="footer-bar">
+          <span>
+            Send suggestions to{" "}
+            <a
+              href="https://mail.google.com/mail/?view=cm&fs=1&to=info%40tmarkapps.com"
+              aria-label="Compose an email to info@tmarkapps.com in Gmail"
+            >
+              info@tmarkapps.com
+            </a>
+          </span>
+          <span className="footer-divider" aria-hidden="true">|</span>
+          <span>
+            By{" "}
+            <a className="footer-company-link" href="https://tmarktechs.com.au/">
+              <strong>TMARK Techs</strong>
+            </a>
+          </span>
+          <span className="footer-divider" aria-hidden="true">|</span>
+          <button
+            ref={disclaimerTriggerRef}
+            className="footer-disclaimer-link"
+            aria-describedby="footer-disclaimer-tooltip"
+            aria-expanded={isDisclaimerOpen}
+            onClick={() => setIsDisclaimerOpen((isOpen) => !isOpen)}
+          >
+            <span className="footer-info-badge" aria-hidden="true">i</span>
+            Disclaimer
+            <span className="footer-tooltip" id="footer-disclaimer-tooltip" role="tooltip">
+              All data shown are based on TfNSW Open Data and may not always be accurate due to
+              heavy system processing and time-sensitive information.
+            </span>
+          </button>
+        </div>
       </footer>
     </main>
   );
