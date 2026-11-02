@@ -57,7 +57,6 @@ const supabaseKey = SUPABASE_SECRET_KEY || SUPABASE_SERVICE_ROLE_KEY;
 const frontendDir = path.resolve(backendDir, "../frontend/dist");
 const facilityIds = ["24", "26", "27", "28", "29", "30", "31"];
 const tableName = "car_spots";
-const manualSyncCooldownMilliseconds = 25_000;
 const fallbackRequestDelayMilliseconds = 1_000;
 const initialRateLimitBackoffMilliseconds = 5 * 60_000;
 const maximumRateLimitBackoffMilliseconds = 6 * 60 * 60_000;
@@ -281,7 +280,7 @@ async function fetchCarparksFromSupabase() {
   const url = new URL(`/rest/v1/${tableName}`, requiredEnv(SUPABASE_URL, "SUPABASE_URL"));
   url.searchParams.set(
     "select",
-    "id,facility_id,facility_name,suburb,address,total_spots,occupied,available,message_date,updated_at",
+    "id,facility_id,facility_name,suburb,address,total_spots,occupied,available",
   );
   url.searchParams.set("order", "facility_name.asc");
   const startedAt = new Date();
@@ -316,13 +315,11 @@ async function fetchCarparksFromSupabase() {
       occupied: row.occupied,
       available: row.available,
       percentFull,
-      updated: row.message_date ?? row.updated_at,
     };
   });
 }
 
 let syncInProgress;
-let lastSyncStartedAt = 0;
 let rateLimitUntil = 0;
 let rateLimitCount = 0;
 
@@ -346,7 +343,6 @@ async function syncCarparks() {
     error.retryAfterMilliseconds = rateLimitUntil - Date.now();
     throw error;
   }
-  lastSyncStartedAt = Date.now();
   syncInProgress = (async () => {
     const facilities = await fetchRequestedFacilities();
     const url = new URL(`/rest/v1/${tableName}`, requiredEnv(SUPABASE_URL, "SUPABASE_URL"));
@@ -417,29 +413,6 @@ async function handleRequest(req, res) {
       return sendJson(res, 200, carparksResponse(await fetchCarparksFromSupabase()));
     } catch (error) {
       console.error("Unable to load car parks from Supabase:", error.message);
-      return sendJson(res, error.status === 401 || error.status === 403 ? 502 : error.status || 500, {
-        error: error.message,
-      });
-    }
-  }
-
-  if (req.method === "POST" && requestUrl.pathname === "/api/carparks/sync") {
-    if (Date.now() < rateLimitUntil) {
-      const retryAfterSeconds = Math.ceil((rateLimitUntil - Date.now()) / 1000);
-      res.setHeader("Retry-After", retryAfterSeconds);
-      return sendJson(res, 429, { error: "TfNSW rate limit backoff is active. Please try again later." });
-    }
-    const cooldownRemaining = manualSyncCooldownMilliseconds - (Date.now() - lastSyncStartedAt);
-    if (cooldownRemaining > 0) {
-      res.setHeader("Retry-After", Math.ceil(cooldownRemaining / 1000));
-      return sendJson(res, 429, { error: "A car park sync ran recently. Please try again shortly." });
-    }
-    try {
-      const count = await syncCarparks();
-      console.log(`Manually synced ${count} car parks to Supabase.`);
-      return sendJson(res, 200, carparksResponse(await fetchCarparksFromSupabase()));
-    } catch (error) {
-      console.error("Unable to sync car parks:", error.message);
       return sendJson(res, error.status === 401 || error.status === 403 ? 502 : error.status || 500, {
         error: error.message,
       });

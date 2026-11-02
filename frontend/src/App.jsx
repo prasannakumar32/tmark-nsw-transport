@@ -1,120 +1,70 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-const columns = [
-  { key: "name", label: "Car park" },
-  { key: "spots", label: "Capacity", numeric: true },
-  { key: "occupied", label: "Occupied", numeric: true },
-  { key: "available", label: "Available", numeric: true },
-  { key: "percentFull", label: "Free %", numeric: true },
-  { key: "updated", label: "Data time" },
-];
-
-function formatDate(value) {
-  if (!value) return "-";
+function formatFetchTime(value) {
+  if (!value) return null;
   const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? "-"
-    : new Intl.DateTimeFormat("en-AU", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      timeZoneName: "short",
-      timeZone: "Australia/Sydney",
-    }).format(date);
-}
-
-function getSortValue(park, key) {
-  const value = park[key];
-  if (value == null) return null;
-  if (key === "percentFull") {
-    const percentFull = Number(value);
-    return Number.isFinite(percentFull) ? 100 - percentFull : null;
-  }
-  if (key === "updated") {
-    const timestamp = new Date(value).getTime();
-    return Number.isFinite(timestamp) ? timestamp : null;
-  }
-  return typeof value === "number" ? value : String(value);
-}
-
-function SortableHeader({ column, sortKey, sortDirection, onSort }) {
-  const isSorted = column.key === sortKey;
-  const direction = sortDirection === 1 ? "ascending" : "descending";
-  const indicator = isSorted ? (sortDirection === 1 ? "↑" : "↓") : "";
-
-  return (
-    <th className={column.numeric ? "num" : undefined} aria-sort={isSorted ? direction : "none"}>
-      <button
-        className="sort-button"
-        type="button"
-        aria-label={`Sort by ${column.label}${isSorted ? `, ${direction}` : ""}`}
-        onClick={() => onSort(column.key)}
-      >
-        {column.label}
-        <span className="sort-indicator" aria-hidden="true">{indicator}</span>
-      </button>
-    </th>
-  );
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+    timeZone: "Australia/Sydney",
+  }).format(date);
 }
 
 function CarParkRow({ park }) {
-  const location = [park.address, park.suburb].filter(Boolean).join(", ");
+  const suburb = park.suburb?.trim();
+  const totalSpots = Number(park.spots);
+  const availableSpots = Number(park.available);
+  const hasCapacity = park.spots != null && Number.isFinite(totalSpots) && totalSpots > 0;
+  const hasAvailability = hasCapacity && park.available != null && Number.isFinite(availableSpots);
+  const freeSpots = hasAvailability ? Math.min(Math.max(availableSpots, 0), totalSpots) : 0;
+  const occupiedValue = Number(park.occupied);
+  const occupiedSpots = hasCapacity
+    ? park.occupied != null && Number.isFinite(occupiedValue)
+      ? Math.min(Math.max(occupiedValue, 0), totalSpots)
+      : hasAvailability ? totalSpots - freeSpots : null
+    : null;
+  const freePercent = hasCapacity ? (freeSpots / totalSpots) * 100 : 0;
 
   return (
     <tr>
-      {columns.map(({ key, numeric }) => {
-        const value = park[key];
-        const classNames = [];
-        if (numeric) classNames.push("num");
-        if (key === "updated") classNames.push("muted");
-
-        if (key === "name") {
-          return (
-            <td key={key}>
-              <span className="name">{value ?? "-"}</span>
-              {location && <span className="muted location">{location}</span>}
-            </td>
-          );
-        }
-
-        if (key === "percentFull") {
-          const freePercent = value == null ? null : 100 - Number(value);
-          if (freePercent != null && Number.isFinite(freePercent)) {
-            classNames.push("free-percent", freePercent === 0 ? "full" : freePercent <= 25 ? "busy" : "open");
-          }
-          return (
-            <td key={key} className={classNames.join(" ")}>
-              {freePercent == null || !Number.isFinite(freePercent)
-                ? "-"
-                : `${freePercent.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`}
-            </td>
-          );
-        }
-
-        if (key === "available") {
-          classNames.push("avail", value === 0 ? "full" : park.percentFull >= 75 ? "busy" : "open");
-        }
-
-        let displayValue = value == null ? "-" : value;
-        if (key === "updated") displayValue = formatDate(value);
-        else if (key !== "name" && value != null) displayValue = Number(value).toLocaleString();
-
-        return <td key={key} className={classNames.join(" ")}>{displayValue}</td>;
-      })}
+      <td>
+        <span className="name">{suburb || "-"}</span>
+        {park.address && <span className="muted location">{park.address}</span>}
+      </td>
+      <td className="num">{hasCapacity ? totalSpots.toLocaleString() : "-"}</td>
+      <td className="num">{occupiedSpots == null ? "-" : occupiedSpots.toLocaleString()}</td>
+      <td className="num available-value">
+        {hasAvailability ? freeSpots.toLocaleString() : "-"}
+      </td>
+      <td className="availability-cell">
+        {hasAvailability ? (
+          <div
+            className="availability-bar"
+            role="img"
+            aria-label={`${freeSpots.toLocaleString()} of ${totalSpots.toLocaleString()} spots available`}
+          >
+            <span className="availability-free" style={{ width: `${freePercent}%` }} />
+            <span className="availability-occupied" style={{ width: `${100 - freePercent}%` }} />
+          </div>
+        ) : <div className="availability-bar availability-unknown" aria-hidden="true" />}
+        <span className="availability-percent">
+          {hasAvailability ? `${Math.round(freePercent)}%` : "-"}
+        </span>
+      </td>
     </tr>
   );
 }
 
 export default function App() {
   const [carparks, setCarparks] = useState([]);
-  const [query, setQuery] = useState("");
   const [selectedSuburbs, setSelectedSuburbs] = useState(null);
   const [draftSuburbs, setDraftSuburbs] = useState(null);
   const [isSuburbMenuOpen, setIsSuburbMenuOpen] = useState(false);
-  const [sortKey, setSortKey] = useState("name");
-  const [sortDirection, setSortDirection] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState("");
@@ -122,20 +72,17 @@ export default function App() {
   const suburbTriggerRef = useRef(null);
   const firstSuburbOptionRef = useRef(null);
 
-  const loadCarparks = useCallback(async (sync = false) => {
+  const loadCarparks = useCallback(async () => {
     setIsLoading(true);
     setError("");
     try {
-      const response = await fetch(sync ? "/api/carparks/sync" : "/api/carparks", {
-        method: sync ? "POST" : "GET",
-        headers: { Accept: "application/json" },
-      });
+      const response = await fetch("/api/carparks", { headers: { Accept: "application/json" } });
       const payload = await response.json();
       if (!response.ok) {
         throw new Error(payload.error || `Request failed (${response.status})`);
       }
       setCarparks(Array.isArray(payload.carparks) ? payload.carparks : []);
-      setFetchedAt(payload.fetchedAt);
+      setFetchedAt(payload.fetchedAt ?? null);
       setHasLoaded(true);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load car park data.");
@@ -175,67 +122,31 @@ export default function App() {
       .sort((a, b) => a.localeCompare(b)),
     [carparks],
   );
-  const suburbFilteredCarparks = useMemo(
-    () => selectedSuburbs === null
+  const matches = useMemo(
+    () => [...(selectedSuburbs === null
       ? carparks
-      : carparks.filter((park) => selectedSuburbs.includes(park.suburb?.trim())),
+      : carparks.filter((park) => selectedSuburbs.includes(park.suburb?.trim())))]
+      .sort((a, b) => String(a.name ?? "").localeCompare(String(b.name ?? ""))),
     [carparks, selectedSuburbs],
   );
 
-  const matches = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    return suburbFilteredCarparks
-      .filter((park) =>
-        `${park.name} ${park.id} ${park.tfnswId ?? ""} ${park.suburb ?? ""} ${park.address ?? ""}`
-          .toLowerCase()
-          .includes(normalizedQuery),
-      )
-      .sort((a, b) => {
-        const left = getSortValue(a, sortKey);
-        const right = getSortValue(b, sortKey);
-        if (left == null || right == null) {
-          return left == null ? (right == null ? 0 : 1) : -1;
-        }
-        const comparison = typeof left === "string" && typeof right === "string"
-          ? left.localeCompare(right)
-          : left - right;
-        return comparison * sortDirection;
-      });
-  }, [suburbFilteredCarparks, query, sortDirection, sortKey]);
-
-  function handleSort(key) {
-    if (key === sortKey) {
-      setSortDirection((direction) => direction * -1);
-    } else {
-      setSortKey(key);
-      setSortDirection(1);
-    }
-  }
-
   const selectedSuburbCount = selectedSuburbs === null ? suburbs.length : selectedSuburbs.length;
   const draftSuburbCount = draftSuburbs === null ? suburbs.length : draftSuburbs.length;
+  const formattedFetchTime = formatFetchTime(fetchedAt);
 
   return (
     <main className="page">
       <header className="head">
-        <div>
+        <div className="page-heading">
           <h1>Car park availability</h1>
           <p className="sub">Live car park occupancy from Transport for NSW</p>
         </div>
       </header>
-      <div className="tools">
-        <input
-          type="search"
-          placeholder="Search by name, location, or facility ID"
-          aria-label="Search car parks"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-        <button type="button" onClick={() => loadCarparks(true)} disabled={isLoading}>
-          {isLoading ? "Loading..." : "Refresh"}
-        </button>
-      </div>
       <div className="station-toolbar">
+        <div className="filter-copy">
+          <span className="section-eyebrow">PARKING LOCATIONS</span>
+          <span className="filter-caption">Choose suburbs to narrow the results</span>
+        </div>
         <button
           ref={suburbTriggerRef}
           className="suburb-trigger"
@@ -254,7 +165,7 @@ export default function App() {
           </span>
           <span className={`suburb-chevron${isSuburbMenuOpen ? " is-open" : ""}`} aria-hidden="true">⌄</span>
         </button>
-        <span className="suburb-hint">
+        <span className="suburb-hint" aria-live="polite">
           {selectedSuburbs === null ? "Showing all suburbs" : `Showing ${selectedSuburbCount} selected`}
         </span>
       </div>
@@ -362,41 +273,40 @@ export default function App() {
       )}
       {error && <div className="error" role="alert">{error}</div>}
       <div className="tablewrap">
-        <table>
-          <thead>
-            <tr>
-              {columns.map((column) => (
-                <SortableHeader
-                  key={column.key}
-                  column={column}
-                  sortKey={sortKey}
-                  sortDirection={sortDirection}
-                  onSort={handleSort}
-                />
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {matches.map((park) => <CarParkRow key={park.id} park={park} />)}
-            {!matches.length && (
+        <div className="table-scroll">
+          <table>
+            <thead>
               <tr>
-                <td className="empty" colSpan={columns.length}>
-                  {selectedSuburbs !== null && selectedSuburbCount === 0
-                    ? "Select at least one suburb to view car parks"
-                    : isLoading && !hasLoaded
-                      ? "Loading car park data..."
-                      : suburbFilteredCarparks.length
-                        ? "No matching car parks"
-                        : "No car park data available"}
-                </td>
+                <th scope="col">Suburbs</th>
+                <th scope="col" className="num">Capacity</th>
+                <th scope="col" className="num">Occupied</th>
+                <th scope="col" className="num">Available</th>
+                <th scope="col" className="availability-cell">Free %</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {matches.map((park) => <CarParkRow key={park.id} park={park} />)}
+              {!matches.length && (
+                <tr>
+                  <td className="empty" colSpan={5}>
+                    {selectedSuburbs !== null && selectedSuburbCount === 0
+                      ? "Select at least one suburb to view results"
+                      : isLoading && !hasLoaded
+                        ? "Loading suburb data..."
+                        : "No suburb data available"}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
       <footer className="foot">
-        Data © Transport for NSW (CC BY)
-        {fetchedAt ? ` · Checked ${formatDate(fetchedAt)}` : ""}
+        <span>
+          Source: Transport for NSW
+          {formattedFetchTime && ` · Data last updated ${formattedFetchTime}`}
+        </span>
+        <span className="legend"><i className="legend-free" /> Available <i className="legend-occupied" /> Occupied</span>
       </footer>
     </main>
   );
