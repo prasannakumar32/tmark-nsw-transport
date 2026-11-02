@@ -55,6 +55,11 @@ function CarParkRow({ park }) {
         <span className="availability-percent">
           {hasAvailability ? `${Math.round(freePercent)}%` : "-"}
         </span>
+        <span className="mobile-capacity">
+          {occupiedSpots == null
+            ? "Occupancy unavailable"
+            : `${occupiedSpots.toLocaleString()} of ${totalSpots.toLocaleString()} `}
+        </span>
       </td>
     </tr>
   );
