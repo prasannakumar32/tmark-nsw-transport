@@ -30,9 +30,12 @@ function CarParkRow({ park }) {
       : hasAvailability ? totalSpots - freeSpots : null
     : null;
   const freePercent = hasCapacity ? (freeSpots / totalSpots) * 100 : 0;
+  const availabilityStatus = !hasAvailability
+    ? "unknown"
+    : freePercent > 40 ? "good" : freePercent < 20 ? "critical" : "low";
 
   return (
-    <tr>
+    <tr className={`availability-${availabilityStatus}`}>
       <td>
         <span className="name">{suburb || "-"}</span>
         {park.address && <span className="muted location">{park.address}</span>}
@@ -49,8 +52,8 @@ function CarParkRow({ park }) {
             role="img"
             aria-label={`${freeSpots.toLocaleString()} of ${totalSpots.toLocaleString()} spots available`}
           >
-            <span className="availability-free" style={{ width: `${freePercent}%` }} />
             <span className="availability-occupied" style={{ width: `${100 - freePercent}%` }} />
+            <span className="availability-free" style={{ width: `${freePercent}%` }} />
           </div>
         ) : <div className="availability-bar availability-unknown" aria-hidden="true" />}
         <span className="availability-percent">
@@ -345,8 +348,8 @@ export default function App() {
           <span>
             Send suggestions to{" "}
             <a
-              href="https://mail.google.com/mail/?view=cm&fs=1&to=info%40tmarkapps.com"
-              aria-label="Compose an email to info@tmarkapps.com in Gmail"
+              href="mailto:info@tmarkapps.com?subject=Carpark%20spots%20and%20fuel%20info"
+              aria-label="Send suggestions by email to info@tmarkapps.com"
             >
               info@tmarkapps.com
             </a>
@@ -354,7 +357,7 @@ export default function App() {
           <span className="footer-divider" aria-hidden="true">|</span>
           <span>
             By{" "}
-            <a className="footer-company-link" href="https://tmarktechs.com.au/">
+            <a className="footer-company-link" href="https://tmarkapps.com/">
               <strong>TMARK Techs</strong>
             </a>
           </span>
