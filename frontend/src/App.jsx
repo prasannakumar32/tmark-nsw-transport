@@ -10,6 +10,7 @@ function formatFetchTime(value) {
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    second: "2-digit",
     timeZoneName: "short",
     timeZone: "Australia/Sydney",
   }).format(date);
@@ -54,11 +55,6 @@ function CarParkRow({ park }) {
         ) : <div className="availability-bar availability-unknown" aria-hidden="true" />}
         <span className="availability-percent">
           {hasAvailability ? `${Math.round(freePercent)}%` : "-"}
-        </span>
-        <span className="mobile-capacity">
-          {occupiedSpots == null
-            ? "Occupancy unavailable"
-            : `${occupiedSpots.toLocaleString()} of ${totalSpots.toLocaleString()} `}
         </span>
       </td>
     </tr>
@@ -170,9 +166,12 @@ export default function App() {
         <div className="page-heading">
           <div className="heading-row">
             <h1>Car park availability</h1>
-            <span className="live-badge" aria-label="Live car park data">
-              <span className="live-dot" aria-hidden="true" />
-              Live
+            <span
+              className="live-badge"
+              aria-live="polite"
+              aria-label={formattedFetchTime ? `Last updated ${formattedFetchTime}` : "Last updated time unavailable"}
+            >
+              Last updated: {formattedFetchTime || "—"}
             </span>
           </div>
           <p className="sub">Live car park occupancy from Transport for NSW</p>
@@ -183,27 +182,31 @@ export default function App() {
           <span className="section-eyebrow">PARKING LOCATIONS</span>
           <span className="filter-caption">Choose suburbs to narrow the results</span>
         </div>
-        <button
-          ref={suburbTriggerRef}
-          className="suburb-trigger"
-          type="button"
-          aria-expanded={isSuburbMenuOpen}
-          aria-controls="suburb-dialog"
-          onClick={() => {
-            setDraftSuburbs(selectedSuburbs);
-            setIsSuburbMenuOpen(true);
-          }}
-        >
-          <span className="suburb-icon" aria-hidden="true">⌖</span>
-          <span>Suburbs</span>
-          <span className="suburb-count">
-            {selectedSuburbs === null ? "All" : `${selectedSuburbCount}/${suburbs.length}`}
+        <div className="suburb-control">
+          <button
+            ref={suburbTriggerRef}
+            className="suburb-trigger"
+            type="button"
+            aria-expanded={isSuburbMenuOpen}
+            aria-controls="suburb-dialog"
+            onClick={() => {
+              setDraftSuburbs(selectedSuburbs);
+              setIsSuburbMenuOpen(true);
+            }}
+          >
+            <span className="suburb-icon" aria-hidden="true">⌖</span>
+            <span>Suburbs</span>
+            <span className="suburb-count">
+              {selectedSuburbs === null ? "All" : `${selectedSuburbCount}/${suburbs.length}`}
+            </span>
+            <span className={`suburb-chevron${isSuburbMenuOpen ? " is-open" : ""}`} aria-hidden="true">⌄</span>
+          </button>
+          <span className="suburb-hint" aria-live="polite">
+            {selectedSuburbs === null
+              ? "Showing data for: all suburbs"
+              : `Showing data for: ${selectedSuburbs.join(", ")}`}
           </span>
-          <span className={`suburb-chevron${isSuburbMenuOpen ? " is-open" : ""}`} aria-hidden="true">⌄</span>
-        </button>
-        <span className="suburb-hint" aria-live="polite">
-          {selectedSuburbs === null ? "Showing all suburbs" : `Showing ${selectedSuburbCount} selected`}
-        </span>
+        </div>
       </div>
       {isSuburbMenuOpen && (
         <div
