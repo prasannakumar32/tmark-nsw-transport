@@ -96,7 +96,7 @@ export default function App() {
 
   useEffect(() => {
     loadCarparks();
-    const intervalId = window.setInterval(loadCarparks, 300000);
+    const intervalId = window.setInterval(loadCarparks, 12000);
     return () => window.clearInterval(intervalId);
   }, [loadCarparks]);
 
@@ -166,17 +166,17 @@ export default function App() {
         <div className="page-heading">
           <div className="heading-row">
             <h1>Car park availability</h1>
-            <span
-              className="live-badge"
-              aria-live="polite"
-              aria-label={formattedFetchTime ? `Last updated ${formattedFetchTime}` : "Last updated time unavailable"}
-            >
-              Last updated: {formattedFetchTime || "—"}
-            </span>
           </div>
           <p className="sub">Live car park occupancy from Transport for NSW</p>
         </div>
       </header>
+      <p
+        className="last-updated"
+        aria-live="polite"
+        aria-label={formattedFetchTime ? `Last updated ${formattedFetchTime}` : "Last updated time unavailable"}
+      >
+        Last updated: {formattedFetchTime || "—"}
+      </p>
       <div className="station-toolbar">
         <div className="filter-copy">
           <span className="section-eyebrow">PARKING LOCATIONS</span>
@@ -203,7 +203,7 @@ export default function App() {
           </button>
           <span className="suburb-hint" aria-live="polite">
             {selectedSuburbs === null
-              ? "Showing data for: all suburbs"
+              ? `Showing data for: ${suburbs.join(", ") || "no suburbs available"}`
               : `Showing data for: ${selectedSuburbs.join(", ")}`}
           </span>
         </div>
