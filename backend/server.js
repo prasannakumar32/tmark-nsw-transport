@@ -322,6 +322,21 @@ async function fetchCarparksFromSupabase() {
 let syncInProgress;
 let rateLimitUntil = 0;
 let rateLimitCount = 0;
+const missingSyncConfig = [];
+if (!TFNSW_API_KEY) missingSyncConfig.push("TFNSW_API_KEY");
+if (!supabaseKey) missingSyncConfig.push("SUPABASE_SECRET_KEY");
+const syncStatus = {
+  enabled: missingSyncConfig.length === 0,
+  missingConfig: missingSyncConfig,
+  running: false,
+  lastAttemptAt: null,
+  lastSuccessAt: null,
+  lastFailureAt: null,
+  lastFailureService: null,
+  lastFailureStatus: null,
+  consecutiveFailures: 0,
+  nextAttemptAt: null,
+};
 
 function updateRateLimitBackoff(error) {
   if (error.status !== 429) return;
@@ -383,15 +398,40 @@ async function syncCarparks() {
 }
 
 async function runScheduledSync() {
-  const nextDelay = scheduledSyncDelayMilliseconds();
+  let nextDelay;
+  try {
+    nextDelay = scheduledSyncDelayMilliseconds();
+  } catch (error) {
+    console.error("Unable to calculate the next car park sync interval:", error.message);
+    nextDelay = 60_000;
+  }
+
+  syncStatus.running = true;
+  syncStatus.lastAttemptAt = new Date().toISOString();
+  syncStatus.nextAttemptAt = null;
   try {
     const count = await syncCarparks();
     console.log(`Synced ${count} car parks to Supabase.`);
+    syncStatus.lastSuccessAt = new Date().toISOString();
+    syncStatus.consecutiveFailures = 0;
+    syncStatus.lastFailureAt = null;
+    syncStatus.lastFailureService = null;
+    syncStatus.lastFailureStatus = null;
   } catch (error) {
     console.error("Scheduled car park sync failed:", error.message);
+    syncStatus.lastFailureAt = new Date().toISOString();
+    syncStatus.lastFailureService = error.message.startsWith("Transport NSW")
+      ? "tfnsw"
+      : error.message.startsWith("Supabase") ? "supabase" : "sync";
+    syncStatus.lastFailureStatus = Number.isInteger(error.status) ? error.status : null;
+    syncStatus.consecutiveFailures += 1;
+  } finally {
+    syncStatus.running = false;
+    const backoffRemaining = Math.max(rateLimitUntil - Date.now(), 0);
+    const delay = Math.max(nextDelay, backoffRemaining);
+    syncStatus.nextAttemptAt = new Date(Date.now() + delay).toISOString();
+    setTimeout(runScheduledSync, delay);
   }
-  const backoffRemaining = Math.max(rateLimitUntil - Date.now(), 0);
-  setTimeout(runScheduledSync, Math.max(nextDelay, backoffRemaining));
 }
 
 function carparksResponse(carparks) {
@@ -405,7 +445,7 @@ function carparksResponse(carparks) {
 async function handleRequest(req, res) {
   const requestUrl = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
   if (req.method === "GET" && requestUrl.pathname === "/api/health") {
-    return sendJson(res, 200, { ok: true });
+    return sendJson(res, 200, { ok: true, sync: syncStatus });
   }
 
   if (req.method === "GET" && requestUrl.pathname === "/api/carparks") {
@@ -458,12 +498,10 @@ const server = createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`TMark NSW Transport server on http://localhost:${PORT}`);
-  const missingConfig = [];
-  if (!TFNSW_API_KEY) missingConfig.push("TFNSW_API_KEY");
-  if (!supabaseKey) missingConfig.push("SUPABASE_SECRET_KEY");
-  if (missingConfig.length) {
-    console.error(`Car park sync worker disabled; configure ${missingConfig.join(" and ")} in backend/.env.`);
+  if (missingSyncConfig.length) {
+    console.error(`Car park sync worker disabled; configure ${missingSyncConfig.join(" and ")} in backend/.env.`);
   } else {
+    console.info("Car park sync worker enabled.");
     void runScheduledSync();
   }
 });

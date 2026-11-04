@@ -40,6 +40,8 @@ npm start
 
 Starts the server without rebuilding the frontend. Build the frontend separately before the first start and whenever frontend source files change.
 
+For Hostinger, run the Node.js app from the repository root with `npm start` and configure `TFNSW_API_KEY` and `SUPABASE_SECRET_KEY` in the environment of that running app. A local `backend/.env` file does not configure Hostinger's app. Check `https://<your-domain>/api/health` after deployment: its `sync` object reports whether the worker is enabled (and which variables are missing), the last attempt/success, consecutive failures, and the next scheduled attempt. A `lastFailureService` of `tfnsw` with status `429` indicates TfNSW rate limiting; `supabase` indicates a database write/read failure. Check the Node app logs for the detailed error.
+
 ## Data flow
 
 - On server start, the backend requests TfNSW facilities `24`, `26`, `27`, `28`, `29`, `30`, and `31`. It prefers TfNSW's consolidated full-list endpoint (one request per sync); if unavailable, it requests facilities one at a time with a delay. Subsequent sync intervals are configured by hour in [`backend/adaptive-delay.json`](./backend/adaptive-delay.json), using the configured timezone and delay in seconds. The default Sydney-time cadence is every 25 seconds from 5–10 am and 2–6 pm, every 40 seconds from 10 am–2 pm, every 2 minutes from 6–8 pm, and every 3 minutes otherwise. The windows must be ordered, contiguous, and cover all 24 hours.
