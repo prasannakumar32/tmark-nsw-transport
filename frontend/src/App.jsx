@@ -1,5 +1,31 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+const suburbSelectionStorageKey = "tmark-nsw-transport:selected-suburbs";
+
+function readStoredSuburbSelection() {
+  try {
+    const storedSelection = window.localStorage.getItem(suburbSelectionStorageKey);
+    if (storedSelection === null) return { selectedSuburbs: null, error: "" };
+
+    const selectedSuburbs = JSON.parse(storedSelection);
+    if (selectedSuburbs === null
+      || (Array.isArray(selectedSuburbs) && selectedSuburbs.every((suburb) => typeof suburb === "string"))) {
+      return { selectedSuburbs, error: "" };
+    }
+
+    return {
+      selectedSuburbs: null,
+      error: "The saved suburb selection is invalid. Choose your suburbs again.",
+    };
+  } catch (storageError) {
+    console.error("Unable to restore the saved suburb selection:", storageError);
+    return {
+      selectedSuburbs: null,
+      error: "Unable to restore the saved suburb selection from this browser.",
+    };
+  }
+}
+
 function formatFetchTime(value) {
   if (!value) return null;
   const date = new Date(value);
@@ -52,8 +78,8 @@ function CarParkRow({ park }) {
             role="img"
             aria-label={`${freeSpots.toLocaleString()} of ${totalSpots.toLocaleString()} spots available`}
           >
-            <span className="availability-occupied" style={{ width: `${100 - freePercent}%` }} />
             <span className="availability-free" style={{ width: `${freePercent}%` }} />
+            <span className="availability-occupied" style={{ width: `${100 - freePercent}%` }} />
           </div>
         ) : <div className="availability-bar availability-unknown" aria-hidden="true" />}
         <span className="availability-percent">
@@ -64,14 +90,67 @@ function CarParkRow({ park }) {
   );
 }
 
-export default function App() {
+function DashboardHeader({ activePage }) {
+  const subtitle = activePage === "car-park"
+    ? "Live car park availability to help you plan your journey."
+    : activePage === "train"
+      ? "Train"
+      : "Fuel Spot";
+
+  return (
+    <header className="head">
+      <div className="page-heading">
+        <h1>Commuter Dashboard</h1>
+        <p className="sub">{subtitle}</p>
+      </div>
+      <nav className="dashboard-nav" aria-label="Commuter services">
+        <a
+          className={`dashboard-nav-item${activePage === "car-park" ? " is-active" : ""}`}
+          href="/"
+          aria-current={activePage === "car-park" ? "page" : undefined}
+        >
+          <i className="fa-solid fa-square-parking" aria-hidden="true" />
+          <span>Car Park</span>
+        </a>
+        <a
+          className={`dashboard-nav-item${activePage === "train" ? " is-active" : ""}`}
+          href="/train"
+          aria-current={activePage === "train" ? "page" : undefined}
+        >
+          <i className="fa-solid fa-train" aria-hidden="true" />
+          <span>Train</span>
+        </a>
+        <a
+          className={`dashboard-nav-item${activePage === "fuel-spot" ? " is-active" : ""}`}
+          href="/fuel-spot"
+          aria-current={activePage === "fuel-spot" ? "page" : undefined}
+        >
+          <i className="fa-solid fa-gas-pump" aria-hidden="true" />
+          <span>Fuel Spot</span>
+        </a>
+      </nav>
+    </header>
+  );
+}
+
+function EmptyServicePage({ activePage }) {
+  return (
+    <main className="page">
+      <DashboardHeader activePage={activePage} />
+    </main>
+  );
+}
+
+function CarParkPage() {
+  const [initialSuburbSelection] = useState(readStoredSuburbSelection);
   const [carparks, setCarparks] = useState([]);
-  const [selectedSuburbs, setSelectedSuburbs] = useState(null);
+  const [selectedSuburbs, setSelectedSuburbs] = useState(initialSuburbSelection.selectedSuburbs);
   const [draftSuburbs, setDraftSuburbs] = useState(null);
   const [isSuburbMenuOpen, setIsSuburbMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState("");
+  const [suburbStorageError, setSuburbStorageError] = useState(initialSuburbSelection.error);
   const [fetchedAt, setFetchedAt] = useState(null);
   const [isDisclaimerOpen, setIsDisclaimerOpen] = useState(false);
   const suburbTriggerRef = useRef(null);
@@ -165,14 +244,7 @@ export default function App() {
 
   return (
     <main className="page">
-      <header className="head">
-        <div className="page-heading">
-          <div className="heading-row">
-            <h1>Car park availability</h1>
-          </div>
-          <p className="sub">Live car park occupancy from Transport for NSW</p>
-        </div>
-      </header>
+      <DashboardHeader activePage="car-park" />
       <p
         className="last-updated"
         aria-live="polite"
@@ -180,7 +252,7 @@ export default function App() {
       >
         Last updated: {formattedFetchTime || "—"}
       </p>
-      <div className="station-toolbar">
+      <div className="station-toolbar" id="car-park">
         <div className="filter-copy">
           <span className="section-eyebrow">PARKING LOCATIONS</span>
           <span className="filter-caption">Choose suburbs to narrow the results</span>
@@ -303,6 +375,18 @@ export default function App() {
                 className="suburb-save"
                 type="button"
                 onClick={() => {
+                  try {
+                    window.localStorage.setItem(
+                      suburbSelectionStorageKey,
+                      JSON.stringify(draftSuburbs),
+                    );
+                    setSuburbStorageError("");
+                  } catch (storageError) {
+                    console.error("Unable to save the suburb selection:", storageError);
+                    setSuburbStorageError(
+                      "Your suburb selection was applied but could not be saved in this browser.",
+                    );
+                  }
                   setSelectedSuburbs(draftSuburbs);
                   setIsSuburbMenuOpen(false);
                 }}
@@ -314,6 +398,7 @@ export default function App() {
         </div>
       )}
       {error && <div className="error" role="alert">{error}</div>}
+      {suburbStorageError && <div className="error" role="alert">{suburbStorageError}</div>}
       <div className="tablewrap">
         <div className="table-scroll">
           <table>
@@ -380,4 +465,11 @@ export default function App() {
       </footer>
     </main>
   );
+}
+
+export default function App() {
+  const pathname = window.location.pathname.replace(/\/+$/, "") || "/";
+  if (pathname === "/train") return <EmptyServicePage activePage="train" />;
+  if (pathname === "/fuel-spot") return <EmptyServicePage activePage="fuel-spot" />;
+  return <CarParkPage />;
 }
