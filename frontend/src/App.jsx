@@ -95,7 +95,7 @@ function DashboardHeader({ activePage }) {
     ? "Live car park availability to help you plan your journey."
     : activePage === "train"
       ? "Train"
-      : "Fuel Spot";
+      : "Fuel Price";
 
   return (
     <header className="head">
@@ -121,12 +121,12 @@ function DashboardHeader({ activePage }) {
           <span>Train</span>
         </a>
         <a
-          className={`dashboard-nav-item${activePage === "fuel-spot" ? " is-active" : ""}`}
-          href="/fuel-spot"
-          aria-current={activePage === "fuel-spot" ? "page" : undefined}
+          className={`dashboard-nav-item${activePage === "fuel-Price" ? " is-active" : ""}`}
+          href="/fuel-Price"
+          aria-current={activePage === "fuel-Price" ? "page" : undefined}
         >
           <i className="fa-solid fa-gas-pump" aria-hidden="true" />
-          <span>Fuel Spot</span>
+          <span>Fuel Price</span>
         </a>
       </nav>
     </header>
@@ -472,6 +472,6 @@ function CarParkPage() {
 export default function App() {
   const pathname = window.location.pathname.replace(/\/+$/, "") || "/";
   if (pathname === "/train") return <EmptyServicePage activePage="train" />;
-  if (pathname === "/fuel-spot") return <EmptyServicePage activePage="fuel-spot" />;
+  if (pathname === "/fuel-Price") return <EmptyServicePage activePage="fuel-Price" />;
   return <CarParkPage />;
 }
