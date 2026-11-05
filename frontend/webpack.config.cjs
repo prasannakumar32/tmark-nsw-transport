@@ -1,5 +1,6 @@
 const path = require("node:path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
+const webpack = require("webpack");
 
 module.exports = {
   entry: "./src/main.jsx",
@@ -30,6 +31,9 @@ module.exports = {
     extensions: [".js", ".jsx"],
   },
   plugins: [
+    new webpack.DefinePlugin({
+      "process.env.API_BASE_URL": JSON.stringify(process.env.API_BASE_URL ?? "http://localhost:4000"),
+    }),
     new HtmlWebpackPlugin({
       template: "./index.html",
     }),

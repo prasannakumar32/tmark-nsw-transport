@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "webpack --mode production"
+    "build": "webpack --mode production",
+    "serve": "node serve.js"
   },
   "dependencies": {
     "react": "^18.3.1",

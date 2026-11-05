@@ -5,11 +5,8 @@
   --ink: #172b26;
   --muted: #5f7270;
   --surface: #ffffff;
-  --surface-alt: #f7faf8;
   --accent: #0f7a68;
   --accent-deep: #0d5d4c;
-  --open: #1e9b69;
-  --busy: #cc8033;
   --full: #c85750;
   --border: #dfeae5;
   --shadow: 0 18px 40px rgb(15 39 30 / 8%);
@@ -43,7 +40,6 @@ button, input { font: inherit; }
   box-shadow: var(--shadow);
 }
 .page-heading { min-width: 0; }
-.heading-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .dashboard-nav {
   display: flex;
   flex: 0 0 auto;
@@ -358,7 +354,6 @@ tbody tr.availability-critical:hover { background: #f1c5c1; }
   .suburb-options { grid-template-columns: 1fr; padding: 12px; }
   .suburb-menu-footer { padding: 12px 14px; }
   .suburb-cancel, .suburb-save { flex: 1; }
-  .foot { align-items: flex-start; flex-direction: column; gap: 8px; }
 }
 
 @media (max-width: 420px) {

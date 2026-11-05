@@ -161,7 +161,9 @@ function CarParkPage() {
     setIsLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/carparks", { headers: { Accept: "application/json" } });
+      const response = await fetch(`${process.env.API_BASE_URL}/api/carparks`, {
+        headers: { Accept: "application/json" },
+      });
       const payload = await response.json();
       if (!response.ok) {
         throw new Error(payload.error || `Request failed (${response.status})`);
