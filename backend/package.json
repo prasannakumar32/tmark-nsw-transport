@@ -1,12 +1,15 @@
 {
-  "name": "tmark-nsw-transport-server",
+  "name": "tmark-nsw-transport-backend",
   "version": "1.0.0",
   "private": true,
+  "description": "TfNSW car park occupancy sync worker and REST API",
   "type": "module",
-  "main": "server.js",
+  "main": "api/server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
+    "start:api": "node api/server.js",
+    "start:worker": "node workflow/worker.js",
+    "dev:api": "node --watch api/server.js",
+    "dev:worker": "node --watch workflow/worker.js"
   },
   "engines": {
     "node": ">=18"

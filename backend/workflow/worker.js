@@ -1,36 +1,15 @@
-import { createServer } from "node:http";
-import path from "node:path";
 import fs from "node:fs";
+import path from "node:path";
 import { performance } from "node:perf_hooks";
-import { fileURLToPath } from "node:url";
-
-const backendDir = path.dirname(fileURLToPath(import.meta.url));
-const envPath = path.join(backendDir, ".env");
-if (fs.existsSync(envPath)) {
-  for (const line of fs.readFileSync(envPath, "utf8").split(/\r?\n/)) {
-    const entry = line.trim();
-    if (!entry || entry.startsWith("#")) continue;
-    const separator = entry.indexOf("=");
-    if (separator < 1) continue;
-    const key = entry.slice(0, separator).trim();
-    let value = entry.slice(separator + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1);
-    }
-    if (process.env[key] === undefined) process.env[key] = value;
-  }
-}
+import { backendDir, requiredEnv, supabaseKey } from "../shared/env.js";
+import { requestJson, upsertCarparks } from "../shared/supabase.js";
 
 const {
   TFNSW_API_KEY,
   TFNSW_BASE_URL = "https://api.transport.nsw.gov.au/v1",
-  SUPABASE_URL = "https://iaqwzvnjpfdojnbrlgpz.supabase.co",
-  SUPABASE_SECRET_KEY,
-  SUPABASE_SERVICE_ROLE_KEY,
-  PORT = 4000,
 } = process.env;
 
-const adaptiveDelayConfigPath = path.join(backendDir, "adaptive-delay.json");
+const adaptiveDelayConfigPath = path.join(backendDir, "workflow", "adaptive-delay.json");
 const adaptiveDelayConfig = JSON.parse(fs.readFileSync(adaptiveDelayConfigPath, "utf8"));
 if (!adaptiveDelayConfig || typeof adaptiveDelayConfig.timeZone !== "string"
   || !adaptiveDelayConfig.timeZone || !Array.isArray(adaptiveDelayConfig.windows)
@@ -53,65 +32,10 @@ if (previousWindowEnd !== 24) {
   throw new Error(`Adaptive delay windows must cover all 24 hours in ${adaptiveDelayConfigPath}.`);
 }
 
-const supabaseKey = SUPABASE_SECRET_KEY || SUPABASE_SERVICE_ROLE_KEY;
-const frontendDir = path.resolve(backendDir, "../frontend/dist");
 const facilityIds = ["24", "26", "27", "28", "29", "30", "31"];
-const tableName = "car_spots";
 const fallbackRequestDelayMilliseconds = 1_000;
 const initialRateLimitBackoffMilliseconds = 5 * 60_000;
 const maximumRateLimitBackoffMilliseconds = 6 * 60 * 60_000;
-
-function sendJson(res, status, body) {
-  const content = JSON.stringify(body);
-  res.writeHead(status, {
-    "Content-Type": "application/json; charset=utf-8",
-    "Content-Length": Buffer.byteLength(content),
-  });
-  res.end(content);
-}
-
-async function sendFile(req, res, filePath) {
-  const content = await fs.promises.readFile(filePath);
-  const contentType = {
-    ".css": "text/css; charset=utf-8",
-    ".html": "text/html; charset=utf-8",
-    ".ico": "image/x-icon",
-    ".js": "text/javascript; charset=utf-8",
-    ".json": "application/json; charset=utf-8",
-    ".png": "image/png",
-    ".svg": "image/svg+xml",
-    ".webp": "image/webp",
-    ".woff2": "font/woff2",
-  }[path.extname(filePath).toLowerCase()] ?? "application/octet-stream";
-  res.writeHead(200, { "Content-Type": contentType, "Content-Length": content.length });
-  res.end(req.method === "HEAD" ? undefined : content);
-}
-
-function requiredEnv(value, name) {
-  if (!value) throw new Error(`${name} is not set. Add it to backend/.env.`);
-  return value;
-}
-
-async function requestJson(url, options, serviceName) {
-  const response = await fetch(url, options);
-  const responseText = await response.text();
-  if (!response.ok) {
-    const error = new Error(`${serviceName} request failed (${response.status}): ${responseText.slice(0, 300)}`);
-    error.status = response.status;
-    if (response.status === 429) {
-      const retryAfter = response.headers.get("retry-after");
-      const retryAfterSeconds = Number(retryAfter);
-      if (retryAfter && Number.isFinite(retryAfterSeconds)) {
-        error.retryAfterMilliseconds = Math.max(retryAfterSeconds * 1000, 0);
-      } else if (retryAfter) {
-        const retryAt = Date.parse(retryAfter);
-        if (Number.isFinite(retryAt)) error.retryAfterMilliseconds = Math.max(retryAt - Date.now(), 0);
-      }
-    }
-    throw error;
-  }
-  return responseText ? JSON.parse(responseText) : null;
-}
 
 const sydneyTimeFormat = new Intl.DateTimeFormat("en-AU", {
   timeZone: "Australia/Sydney",
@@ -261,83 +185,9 @@ async function fetchRequestedFacilities() {
   return facilityIds.map((id) => byId.get(id));
 }
 
-function supabaseHeaders(extraHeaders = {}) {
-  const key = requiredEnv(supabaseKey, "SUPABASE_SECRET_KEY");
-  const headers = {
-    apikey: key,
-    Accept: "application/json",
-    ...extraHeaders,
-  };
-  if (!key.startsWith("sb_secret_")) {
-    headers.Authorization = `Bearer ${key}`;
-  }
-  return {
-    ...headers,
-  };
-}
-
-async function fetchCarparksFromSupabase() {
-  const url = new URL(`/rest/v1/${tableName}`, requiredEnv(SUPABASE_URL, "SUPABASE_URL"));
-  url.searchParams.set(
-    "select",
-    "id,facility_id,facility_name,suburb,address,total_spots,occupied,available",
-  );
-  url.searchParams.set("order", "facility_name.asc");
-  const startedAt = new Date();
-  const started = performance.now();
-  let rows;
-  try {
-    rows = await requestJson(url, {
-      headers: supabaseHeaders(),
-    }, "Supabase");
-    if (!Array.isArray(rows)) throw new Error("Supabase returned an invalid car park list.");
-  } catch (error) {
-    console.error(
-      `[Supabase] Fetch failed (started ${startedAt.toISOString()}, elapsed ${(performance.now() - started).toFixed(0)} ms):`,
-      error.message,
-    );
-    throw error;
-  }
-  console.info(
-    `[Supabase] Fetched ${rows.length} car parks (started ${startedAt.toISOString()}, completed ${new Date().toISOString()}, elapsed ${(performance.now() - started).toFixed(0)} ms).`,
-  );
-  return rows.map((row) => {
-    const percentFull = row.total_spots > 0 && row.occupied != null
-      ? Math.min(Math.round((row.occupied / row.total_spots) * 100), 100)
-      : null;
-    return {
-      id: String(row.facility_id),
-      name: cleanFacilityName(row.facility_name),
-      tfnswId: row.facility_id,
-      suburb: row.suburb,
-      address: row.address,
-      spots: row.total_spots,
-      occupied: row.occupied,
-      available: row.available,
-      percentFull,
-    };
-  });
-}
-
 let syncInProgress;
 let rateLimitUntil = 0;
 let rateLimitCount = 0;
-const missingSyncConfig = [];
-if (!TFNSW_API_KEY) missingSyncConfig.push("TFNSW_API_KEY");
-if (!supabaseKey) missingSyncConfig.push("SUPABASE_SECRET_KEY");
-const syncStatus = {
-  enabled: missingSyncConfig.length === 0,
-  missingConfig: missingSyncConfig,
-  running: false,
-  lastAttemptAt: null,
-  lastSuccessAt: null,
-  lastFailureAt: null,
-  lastFailureService: null,
-  lastFailureStatus: null,
-  consecutiveFailures: 0,
-  nextAttemptAt: null,
-};
-
 function updateRateLimitBackoff(error) {
   if (error.status !== 429) return;
   rateLimitCount += 1;
@@ -360,19 +210,10 @@ async function syncCarparks() {
   }
   syncInProgress = (async () => {
     const facilities = await fetchRequestedFacilities();
-    const url = new URL(`/rest/v1/${tableName}`, requiredEnv(SUPABASE_URL, "SUPABASE_URL"));
-    url.searchParams.set("on_conflict", "id");
     const startedAt = new Date();
     const started = performance.now();
     try {
-      await requestJson(url, {
-        method: "POST",
-        headers: supabaseHeaders({
-          "Content-Type": "application/json",
-          Prefer: "resolution=merge-duplicates,return=minimal",
-        }),
-        body: JSON.stringify(facilities),
-      }, "Supabase");
+      await upsertCarparks(facilities);
     } catch (error) {
       console.error(
         `[Supabase] Upsert failed for ${facilities.length} car parks (started ${startedAt.toISOString()}, elapsed ${(performance.now() - started).toFixed(0)} ms):`,
@@ -406,102 +247,21 @@ async function runScheduledSync() {
     nextDelay = 60_000;
   }
 
-  syncStatus.running = true;
-  syncStatus.lastAttemptAt = new Date().toISOString();
-  syncStatus.nextAttemptAt = null;
+  console.info(`Starting scheduled car park sync at ${new Date().toISOString()}.`);
   try {
     const count = await syncCarparks();
     console.log(`Synced ${count} car parks to Supabase.`);
-    syncStatus.lastSuccessAt = new Date().toISOString();
-    syncStatus.consecutiveFailures = 0;
-    syncStatus.lastFailureAt = null;
-    syncStatus.lastFailureService = null;
-    syncStatus.lastFailureStatus = null;
   } catch (error) {
     console.error("Scheduled car park sync failed:", error.message);
-    syncStatus.lastFailureAt = new Date().toISOString();
-    syncStatus.lastFailureService = error.message.startsWith("Transport NSW")
-      ? "tfnsw"
-      : error.message.startsWith("Supabase") ? "supabase" : "sync";
-    syncStatus.lastFailureStatus = Number.isInteger(error.status) ? error.status : null;
-    syncStatus.consecutiveFailures += 1;
   } finally {
-    syncStatus.running = false;
     const backoffRemaining = Math.max(rateLimitUntil - Date.now(), 0);
     const delay = Math.max(nextDelay, backoffRemaining);
-    syncStatus.nextAttemptAt = new Date(Date.now() + delay).toISOString();
+    console.info(`Next car park sync scheduled for ${new Date(Date.now() + delay).toISOString()}.`);
     setTimeout(runScheduledSync, delay);
   }
 }
 
-function carparksResponse(carparks) {
-  return {
-    source: "supabase",
-    fetchedAt: new Date().toISOString(),
-    carparks,
-  };
-}
-
-async function handleRequest(req, res) {
-  const requestUrl = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
-  if (req.method === "GET" && requestUrl.pathname === "/api/health") {
-    return sendJson(res, 200, { ok: true, sync: syncStatus });
-  }
-
-  if (req.method === "GET" && requestUrl.pathname === "/api/carparks") {
-    try {
-      return sendJson(res, 200, carparksResponse(await fetchCarparksFromSupabase()));
-    } catch (error) {
-      console.error("Unable to load car parks from Supabase:", error.message);
-      return sendJson(res, error.status === 401 || error.status === 403 ? 502 : error.status || 500, {
-        error: error.message,
-      });
-    }
-  }
-
-  if (requestUrl.pathname.startsWith("/api/")) {
-    return sendJson(res, 404, { error: "Not found" });
-  }
-
-  if (req.method === "GET" || req.method === "HEAD") {
-    let pathname;
-    try {
-      pathname = decodeURIComponent(requestUrl.pathname);
-    } catch {
-      return sendJson(res, 400, { error: "Invalid URL path" });
-    }
-    if (pathname.startsWith("/vendor/")) return res.writeHead(404).end("Not found");
-    const filePath = path.resolve(frontendDir, `.${pathname}`);
-    const relativePath = path.relative(frontendDir, filePath);
-    if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-      return sendJson(res, 400, { error: "Invalid URL path" });
-    }
-    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-      return sendFile(req, res, filePath);
-    }
-    if (!pathname.startsWith("/api/")) {
-      return sendFile(req, res, path.join(frontendDir, "index.html"));
-    }
-  }
-
-  res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-  res.end("Not found");
-}
-
-const server = createServer((req, res) => {
-  handleRequest(req, res).catch((error) => {
-    console.error(error);
-    if (res.headersSent) return res.destroy(error);
-    sendJson(res, 500, { error: "Internal server error" });
-  });
-});
-
-server.listen(PORT, () => {
-  console.log(`TMark NSW Transport server on http://localhost:${PORT}`);
-  if (missingSyncConfig.length) {
-    console.error(`Car park sync worker disabled; configure ${missingSyncConfig.join(" and ")} in backend/.env.`);
-  } else {
-    console.info("Car park sync worker enabled.");
-    void runScheduledSync();
-  }
-});
+requiredEnv(TFNSW_API_KEY, "TFNSW_API_KEY");
+requiredEnv(supabaseKey, "SUPABASE_SECRET_KEY");
+console.info("TfNSW Car Park Occupancy Sync Worker started.");
+void runScheduledSync();

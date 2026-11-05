@@ -2,7 +2,7 @@
   "name": "tmark-nsw-transport",
   "version": "1.0.0",
   "private": true,
-  "description": "React frontend and native Node.js server for NSW car park occupancy",
+  "description": "Separate static frontend, REST API, and NSW car park sync worker",
   "workspaces": [
     "frontend"
   ],
@@ -10,8 +10,12 @@
     "node": ">=18"
   },
   "scripts": {
-    "dev": "node --watch backend/server.js",
     "build": "npm run build --workspace=frontend",
-    "start": "node backend/server.js"
+    "start": "node backend/api/server.js",
+    "start:api": "node backend/api/server.js",
+    "start:worker": "node backend/workflow/worker.js",
+    "dev:api": "node --watch backend/api/server.js",
+    "dev:worker": "node --watch backend/workflow/worker.js",
+    "dev:frontend": "npm run build --workspace=frontend && npm run serve --workspace=frontend"
   }
 }
