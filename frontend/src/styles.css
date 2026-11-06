@@ -208,7 +208,7 @@ tbody tr.availability-critical:hover { background: #f1c5c1; }
   text-decoration: none;
   font-weight: 600;
 }
-.page-footer .footer-company-link strong { color: #60a5fa; }
+.page-footer .footer-company-link strong { color: #2dd8d2; }
 .page-footer a:hover { text-decoration: underline; }
 .footer-disclaimer-link {
   position: relative;
