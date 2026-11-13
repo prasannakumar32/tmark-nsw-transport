@@ -3,6 +3,7 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { backendDir, requiredEnv, supabaseKey } from "../shared/env.js";
 import { requestJson, upsertCarparks } from "../shared/supabase.js";
+import { cleanTfnswApiKey } from "../shared/tfnsw.js";
 
 const {
   TFNSW_API_KEY,
@@ -118,7 +119,7 @@ function normaliseFacility(raw, requestedId) {
 }
 
 async function fetchFacility(facilityId) {
-  const apiKey = requiredEnv(TFNSW_API_KEY, "TFNSW_API_KEY").trim().replace(/^apikey\s+/i, "");
+  const apiKey = cleanTfnswApiKey(TFNSW_API_KEY);
   const url = `${TFNSW_BASE_URL}/carpark?facility=${encodeURIComponent(facilityId)}`;
   const payload = await requestJson(url, {
     headers: { Authorization: `apikey ${apiKey}`, Accept: "application/json" },
@@ -157,7 +158,7 @@ async function fetchFacilitiesIndividually(ids) {
 }
 
 async function fetchRequestedFacilities() {
-  const apiKey = requiredEnv(TFNSW_API_KEY, "TFNSW_API_KEY").trim().replace(/^apikey\s+/i, "");
+  const apiKey = cleanTfnswApiKey(TFNSW_API_KEY);
   const url = `${TFNSW_BASE_URL}/carpark/full-list`;
   let payload;
   try {
