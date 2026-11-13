@@ -38,10 +38,6 @@ const fallbackRequestDelayMilliseconds = 1_000;
 const initialRateLimitBackoffMilliseconds = 5 * 60_000;
 const maximumRateLimitBackoffMilliseconds = 6 * 60 * 60_000;
 
-const sydneyTimeFormat = new Intl.DateTimeFormat("en-AU", {
-  timeZone: "Australia/Sydney",
-  timeZoneName: "shortOffset",
-});
 const sydneyHourFormat = new Intl.DateTimeFormat("en-AU", {
   timeZone: adaptiveDelayConfig.timeZone,
   hour: "numeric",
@@ -61,25 +57,11 @@ function scheduledSyncDelayMilliseconds(timestamp = Date.now()) {
   return window.delayMilliseconds;
 }
 
-function sydneyOffsetMilliseconds(timestamp) {
-  const zoneName = sydneyTimeFormat.formatToParts(new Date(timestamp))
-    .find((part) => part.type === "timeZoneName")?.value;
-  const match = /^GMT([+-])(\d{1,2})(?::(\d{2}))?$/.exec(zoneName ?? "");
-  if (!match) return 0;
-  const minutes = Number(match[2]) * 60 + Number(match[3] ?? 0);
-  return (match[1] === "-" ? -1 : 1) * minutes * 60 * 1000;
-}
-
 function normaliseTimestamp(value) {
   if (value === null || value === undefined || value === "") return null;
-  let timestamp = Date.parse(value);
-  if (/^\d{9,10}$/.test(String(value))) {
-    const localTimestamp = Date.UTC(2000, 0, 1) + Number(value) * 1000;
-    timestamp = localTimestamp;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      timestamp = localTimestamp - sydneyOffsetMilliseconds(timestamp);
-    }
-  }
+  const timestamp = /^\d{9,10}$/.test(String(value))
+    ? Date.UTC(2000, 0, 1) + Number(value) * 1000
+    : Date.parse(value);
   return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null;
 }
 
