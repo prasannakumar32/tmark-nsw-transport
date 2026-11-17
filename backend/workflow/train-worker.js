@@ -90,11 +90,14 @@ function asIsoTimestamp(value, label, stopId) {
 }
 
 function propertyValue(properties, name) {
-  if (!Array.isArray(properties)) return null;
-  const property = properties.find(
-    (item) => String(item?.key ?? item?.name ?? "").toLowerCase() === name,
-  );
-  return property?.value == null ? null : String(property.value);
+  if (!properties || typeof properties !== "object") return null;
+  const value = Array.isArray(properties)
+    ? properties.find(
+        (item) => String(item?.key ?? item?.name ?? "").toLowerCase() === name,
+      )?.value
+    : properties[name] ?? Object.entries(properties)
+      .find(([key]) => key.toLowerCase() === name)?.[1];
+  return value == null ? null : String(value);
 }
 
 function stopEventsFrom(payload, station) {
@@ -103,13 +106,10 @@ function stopEventsFrom(payload, station) {
     const locationsWithEvents = payload.locations
       .filter((location) => Array.isArray(location?.stopEvents));
     const matchingLocation = locationsWithEvents.find((location) => {
-      const stopIdProperty = Array.isArray(location.properties)
-        ? location.properties.find((property) => {
-            const name = String(property?.key ?? property?.name ?? "").toLowerCase();
-            return name === "stopid" || name === "stop_id";
-        })
-        : null;
-      const locationStopId = location.id ?? location.stopId ?? stopIdProperty?.value;
+      const locationStopId = location.id
+        ?? location.stopId
+        ?? propertyValue(location.properties, "stopid")
+        ?? propertyValue(location.properties, "stop_id");
       return locationStopId != null && String(locationStopId) === String(station.stopId);
     });
     const location = matchingLocation
@@ -145,17 +145,25 @@ function formatDepartures(payload, station, updatedAt) {
     );
     const isCancelled = event.isCancelled === true || event.cancelled === true;
     const delayMilliseconds = Date.parse(estimatedDeparture) - Date.parse(plannedDeparture);
-    const status = isCancelled ? "Cancelled" : delayMilliseconds > 60_000 ? "Delayed" : "On time";
-    const line = transportation.number == null
-      ? String(transportation.name ?? "").match(/\b[A-Z]\d{1,2}\b/)?.[0] ?? ""
-      : String(transportation.number);
+    const delayMinutes = Math.round(delayMilliseconds / 60_000);
+    const status = isCancelled
+      ? "Cancelled"
+      : delayMinutes > 0
+        ? `LATE ${delayMinutes} min`
+        : delayMinutes < 0
+          ? `EARLY ${Math.abs(delayMinutes)} min`
+          : "ON TIME";
+    const line = transportation.disassembledName
+      || transportation.number
+      || String(transportation.name ?? "").match(/\b[A-Z]\d{1,2}\b/)?.[0]
+      || "";
     const destination = transportation.destination?.name
       ?? transportation.destination
       ?? "";
     const platform = propertyValue(event.location?.properties, "platform")
       ?? propertyValue(event.properties, "platform");
     const destinationName = String(destination).slice(0, 200);
-    const lineName = line.slice(0, 4);
+    const lineName = String(line).trim().slice(0, 100);
     const platformName = platform?.slice(0, 10) ?? null;
     const speechText = `${lineName ? `${lineName} ` : ""}train to ${destinationName || "its destination"}, ${status.toLowerCase()}${platformName ? `, platform ${platformName}` : ""}.`;
 
