@@ -30,7 +30,7 @@ Requires Node.js 18 or newer.
 Run each service in a separate terminal:
 
 ```sh
-npm run dev:worker
+npm run dev:carpark-worker
 npm run dev:api
 npm run dev:frontend
 ```
@@ -52,7 +52,7 @@ Deploy the backend as two separate Node.js processes using the repository root:
 
 ```sh
 npm run start:api
-npm run start:worker
+npm run start:carpark-worker
 ```
 
 Configure these environment variables on the **API** service:
@@ -62,13 +62,13 @@ Configure these environment variables on the **API** service:
 - `API_PORT` (optional; defaults to `4000`; `PORT` is also accepted)
 - `CORS_ORIGIN` — comma-separated allowed frontend origins, for example `https://dashboard.example.com`
 
-Configure these on the **worker** service:
+Configure these on the **car-park worker** service:
 
 - `TFNSW_API_KEY`
 - `TFNSW_BASE_URL` (optional; defaults to the TfNSW API URL)
 - `SUPABASE_URL` and `SUPABASE_SECRET_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`)
 
-Keep the Supabase key server-side; never add it to frontend build variables. Run exactly one worker instance to avoid duplicate TfNSW polling. Use the platform's process manager to restart it if it exits.
+Keep the Supabase key server-side; never add it to frontend build variables. Run exactly one car-park worker instance to avoid duplicate TfNSW polling. Use the platform's process manager to restart it if it exits.
 
 ## REST endpoints
 

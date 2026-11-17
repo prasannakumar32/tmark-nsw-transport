@@ -2,7 +2,7 @@
   "name": "tmark-nsw-transport",
   "version": "1.0.0",
   "private": true,
-  "description": "Separate static frontend, REST API, and NSW car park sync worker",
+  "description": "Separate static frontend, REST API, and NSW car park sync workers",
   "workspaces": [
     "frontend"
   ],
@@ -13,10 +13,10 @@
     "build": "npm run build --workspace=frontend",
     "start": "node backend/api/server.js",
     "start:api": "node backend/api/server.js",
-    "start:worker": "node backend/workflow/worker.js",
+    "start:carpark-worker": "node backend/workflow/carpark-worker.js",
     "start:train-worker": "node backend/workflow/train-worker.js",
     "dev:api": "node --watch backend/api/server.js",
-    "dev:worker": "node --watch backend/workflow/worker.js",
+    "dev:carpark-worker": "node --watch backend/workflow/carpark-worker.js",
     "dev:train-worker": "node --watch backend/workflow/train-worker.js",
     "dev:frontend": "npm run build --workspace=frontend && npm run serve --workspace=frontend"
   }

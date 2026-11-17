@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { backendDir, requiredEnv, supabaseKey } from "../shared/env.js";
 import { requestJson, syncDepartures } from "../shared/supabase.js";
-import { cleanTfnswApiKey } from "../shared/tfnsw.js";
+import { cleanTfnswApiKey, isTfnswTrain } from "../shared/tfnsw.js";
 
 const {
   TFNSW_API_KEY,
@@ -100,6 +100,11 @@ function propertyValue(properties, name) {
   return value == null ? null : String(value);
 }
 
+function platformNumber(value) {
+  const match = String(value ?? "").match(/(\d+)\D*$/);
+  return match?.[1] ?? null;
+}
+
 function stopEventsFrom(payload, station) {
   if (Array.isArray(payload?.stopEvents)) return payload.stopEvents;
   if (Array.isArray(payload?.locations)) {
@@ -126,7 +131,8 @@ function stopEventsFrom(payload, station) {
 }
 
 function formatDepartures(payload, station, updatedAt) {
-  const stopEvents = stopEventsFrom(payload, station);
+  const stopEvents = stopEventsFrom(payload, station)
+    .filter((event) => isTfnswTrain(event?.transportation));
   return stopEvents.map((event, index) => {
     const transportation = event?.transportation;
     const plannedDeparture = asIsoTimestamp(
@@ -164,7 +170,7 @@ function formatDepartures(payload, station, updatedAt) {
       ?? propertyValue(event.properties, "platform");
     const destinationName = String(destination).slice(0, 200);
     const lineName = String(line).trim().slice(0, 100);
-    const platformName = platform?.slice(0, 10) ?? null;
+    const platformName = platformNumber(platform);
     const speechText = `${lineName ? `${lineName} ` : ""}train to ${destinationName || "its destination"}, ${status.toLowerCase()}${platformName ? `, platform ${platformName}` : ""}.`;
 
     return {
