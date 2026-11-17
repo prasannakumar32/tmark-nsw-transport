@@ -8,8 +8,10 @@
   "scripts": {
     "start:api": "node api/server.js",
     "start:worker": "node workflow/worker.js",
+    "start:train-worker": "node workflow/train-worker.js",
     "dev:api": "node --watch api/server.js",
-    "dev:worker": "node --watch workflow/worker.js"
+    "dev:worker": "node --watch workflow/worker.js",
+    "dev:train-worker": "node --watch workflow/train-worker.js"
   },
   "engines": {
     "node": ">=18"

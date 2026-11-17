@@ -72,6 +72,47 @@ button, input { font: inherit; }
 .section-eyebrow { color: #527d6e; font-size: 10px; font-weight: 750; letter-spacing: .14em; }
 h1 { margin: 0 0 8px; color: var(--ink); font-size: clamp(30px, 4vw, 40px); font-weight: 800; letter-spacing: -1.5px; line-height: 1.08; }
 .sub { margin: 0; color: var(--muted); font-size: 15px; }
+.train-section { overflow: hidden; border: 1px solid var(--border); border-radius: 16px; background: rgba(255, 255, 255, .94); box-shadow: var(--shadow); }
+.train-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 21px 22px 17px; }
+.train-heading .filter-caption { margin: 5px 0 0; }
+.train-heading-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px; }
+.train-result-count { padding: 6px 10px; border: 1px solid #e4ede7; border-radius: 999px; background: #f7faf8; color: #52665a; font-size: 11px; font-weight: 700; }
+.train-refresh-note { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; }
+.train-live-dot, .train-status-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #21a56f; }
+.train-station-tabs { display: flex; gap: 8px; padding: 0 22px 15px; border-bottom: 1px solid #e8efea; }
+.train-station-tab { min-height: 38px; padding: 0 14px; border: 1px solid #dce8df; border-radius: 9px; background: #fff; color: #52665a; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 140ms ease, border-color 140ms ease, color 140ms ease; }
+.train-station-tab:hover { border-color: #a9cbb8; background: #f6faf7; }
+.train-station-tab.is-active { border-color: var(--accent); background: var(--accent); color: #fff; box-shadow: 0 4px 10px rgb(15 122 104 / 18%); }
+.train-table-scroll { overflow-x: auto; }
+.train-table { width: 100%; min-width: 820px; border-collapse: separate; border-spacing: 0; table-layout: auto; }
+.train-table th { position: sticky; top: 0; z-index: 1; padding: 12px 14px; background: #123f40; color: #f5fbf8; font-size: 10px; font-weight: 750; letter-spacing: .07em; text-align: left; text-transform: uppercase; }
+.train-table th:first-child { width: 86px; }
+.train-table th:nth-child(3), .train-table th:nth-child(4) { width: 112px; }
+.train-table th:nth-child(5) { width: 130px; }
+.train-table th:last-child { width: 90px; }
+.train-table td { padding: 12px 14px; border-bottom: 1px solid #edf2ee; color: #34463d; font-size: 12px; vertical-align: middle; }
+.train-table tbody tr { background: #fff; transition: background-color 120ms ease; }
+.train-table tbody tr:nth-child(even) { background: #f8fbf9; }
+.train-table tbody tr:hover { background: #eef7f2; }
+.train-table tbody tr:last-child td { border-bottom: 0; }
+.train-table-hint { display: none; margin: 10px 16px 0; color: var(--muted); font-size: 10px; text-align: right; }
+.train-line { display: inline-flex; min-width: 32px; justify-content: center; padding: 5px 8px; border-radius: 6px; background: #e9f3f2; color: #145451; font-size: 11px; font-weight: 800; }
+.train-destination { display: block; color: #233d33; font-size: 13px; font-weight: 700; }
+.train-countdown { display: block; margin-top: 3px; color: #71847a; font-size: 10px; }
+.train-table-time { color: #243f34 !important; font-size: 13px !important; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.train-time-note { display: block; margin-top: 3px; color: #71847a; font-size: 9px; font-weight: 500; }
+.train-status { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid #d5ecdd; border-radius: 999px; background: #edf8f0; color: #276344; font-size: 10px; font-weight: 750; white-space: nowrap; }
+.train-status .train-status-dot { width: 6px; height: 6px; }
+.train-status-delayed { border-color: #f2dfb6; background: #fff7e5; color: #885b0b; }
+.train-status-delayed .train-status-dot { background: #d2921c; }
+.train-status-cancelled { border-color: #f0d3cf; background: #fff0ee; color: #9a3931; }
+.train-status-cancelled .train-status-dot { background: #c85750; }
+.train-status-status-unavailable { border-color: #e2e8e4; background: #f4f6f5; color: #65756c; }
+.train-status-status-unavailable .train-status-dot { background: #97a39c; }
+.train-platform { display: inline-grid; min-width: 28px; height: 28px; place-items: center; border: 1px solid #e0e9e3; border-radius: 8px; background: #fff; color: #35493d; font-size: 12px; font-weight: 750; }
+.train-unavailable { color: #9aa79f; }
+.train-empty { margin: 0; padding: 38px 20px; color: var(--muted); font-size: 13px; text-align: center; }
+.train-section > .error { margin: 14px 22px 0; }
 .station-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 560px); align-items: start; gap: 15px; margin: 0 0 12px; padding: 0 2px; }
 .filter-copy { display: flex; flex: 1; flex-direction: column; gap: 5px; }
 .filter-caption { color: var(--muted); font-size: 12px; }
@@ -313,6 +354,7 @@ tbody tr.availability-critical:hover { background: #f1c5c1; }
 }
 
 @media (max-width: 760px) {
+  .train-table-hint { display: block; }
   .page { width: calc(100% - 28px); padding-top: 24px; }
   .head { align-items: stretch; flex-direction: column; gap: 16px; padding: 20px; }
   .page-heading { min-width: 0; }
@@ -322,6 +364,11 @@ tbody tr.availability-critical:hover { background: #f1c5c1; }
   .filter-copy { min-width: 0; }
   .suburb-trigger { flex: 0 0 auto; justify-content: center; }
   .suburb-hint { padding-left: 0; }
+  .train-heading { padding-right: 16px; padding-left: 16px; }
+  .train-station-tabs { overflow-x: auto; padding-right: 16px; padding-left: 16px; }
+  .train-station-tab { flex: 0 0 auto; }
+  .train-table { min-width: 790px; }
+  .train-table th, .train-table td { padding-right: 11px; padding-left: 11px; }
   th { padding: 10px 12px; }
   td { padding: 13px 12px; }
 }
@@ -353,6 +400,10 @@ tbody tr.availability-critical:hover { background: #f1c5c1; }
   .suburb-options { grid-template-columns: 1fr; padding: 12px; }
   .suburb-menu-footer { padding: 12px 14px; }
   .suburb-cancel, .suburb-save { flex: 1; }
+  .train-heading { align-items: flex-start; flex-direction: column; gap: 12px; padding-top: 16px; padding-bottom: 12px; }
+  .train-heading-meta { width: 100%; justify-content: space-between; gap: 8px; }
+  .train-table { min-width: 760px; }
+  .train-section > .error { margin-right: 16px; margin-left: 16px; }
 }
 
 @media (max-width: 420px) {
@@ -360,6 +411,8 @@ tbody tr.availability-critical:hover { background: #f1c5c1; }
   .suburb-trigger { gap: 7px; font-size: 11px; }
   .suburb-count { padding: 3px 6px; }
   .suburb-menu-actions button { font-size: 11px; }
+  .train-table { min-width: 740px; }
+  .train-table th, .train-table td { padding-right: 9px; padding-left: 9px; }
   th { padding: 9px 10px; }
   td { padding: 12px 10px; }
   .name { font-size: 12px; }

@@ -1,0 +1,17 @@
+{
+  "timeZone": "Australia/Sydney",
+  "stations": [
+    { "stopId": "276220", "name": "Schofields" },
+    { "stopId": "215020", "name": "Parramatta" },
+    { "stopId": "214810", "name": "Blacktown" }
+  ],
+  "windows": [
+    { "startHour": 0, "endHour": 5, "delaySeconds": 180 },
+    { "startHour": 5, "endHour": 7, "delaySeconds": 60 },
+    { "startHour": 7, "endHour": 10, "delaySeconds": 30 },
+    { "startHour": 10, "endHour": 14, "delaySeconds": 60 },
+    { "startHour": 14, "endHour": 18, "delaySeconds": 30 },
+    { "startHour": 18, "endHour": 20, "delaySeconds": 60 },
+    { "startHour": 20, "endHour": 24, "delaySeconds": 180 }
+  ]
+}

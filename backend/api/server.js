@@ -1,6 +1,15 @@
 import { createServer } from "node:http";
-import { supabaseKey } from "../shared/env.js";
-import { readCarparks } from "../shared/supabase.js";
+import fs from "node:fs";
+import path from "node:path";
+import { backendDir, supabaseKey } from "../shared/env.js";
+import { readCarparks, readDepartures } from "../shared/supabase.js";
+
+const trainConfigPath = path.join(backendDir, "workflow", "train-config.json");
+const trainConfig = JSON.parse(fs.readFileSync(trainConfigPath, "utf8"));
+const trainStations = trainConfig.stations.map(({ stopId, name }) => ({
+  stopId: String(stopId),
+  name,
+}));
 
 const port = Number(process.env.API_PORT || process.env.PORT || 4000);
 const host = process.env.HOST || "0.0.0.0";
@@ -53,6 +62,36 @@ async function handleRequest(req, res) {
       });
     } catch (error) {
       console.error("Unable to load car parks from Supabase:", error.message);
+      return sendJson(res, error.status === 401 || error.status === 403 ? 502 : error.status || 500, {
+        error: error.message,
+      });
+    }
+  }
+
+  if (req.method === "GET" && requestUrl.pathname === "/api/trains/stations") {
+    return sendJson(res, 200, { stations: trainStations });
+  }
+
+  if (req.method === "GET" && requestUrl.pathname === "/api/trains") {
+    const stopId = requestUrl.searchParams.get("stopId");
+    if (!stopId || !trainStations.some((station) => station.stopId === stopId)) {
+      return sendJson(res, 400, { error: "A valid stopId is required." });
+    }
+    try {
+      const departures = await readDepartures(stopId);
+      const latestUpdate = departures.reduce((latest, departure) => (
+        departure.updated_at && (!latest || departure.updated_at > latest)
+          ? departure.updated_at
+          : latest
+      ), null);
+      return sendJson(res, 200, {
+        source: "supabase",
+        fetchedAt: latestUpdate,
+        stopId,
+        departures,
+      });
+    } catch (error) {
+      console.error(`Unable to load train departures for stop ${stopId}:`, error.message);
       return sendJson(res, error.status === 401 || error.status === 403 ? 502 : error.status || 500, {
         error: error.message,
       });

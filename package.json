@@ -14,8 +14,10 @@
     "start": "node backend/api/server.js",
     "start:api": "node backend/api/server.js",
     "start:worker": "node backend/workflow/worker.js",
+    "start:train-worker": "node backend/workflow/train-worker.js",
     "dev:api": "node --watch backend/api/server.js",
     "dev:worker": "node --watch backend/workflow/worker.js",
+    "dev:train-worker": "node --watch backend/workflow/train-worker.js",
     "dev:frontend": "npm run build --workspace=frontend && npm run serve --workspace=frontend"
   }
 }

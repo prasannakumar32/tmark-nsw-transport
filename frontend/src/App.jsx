@@ -94,7 +94,7 @@ function DashboardHeader({ activePage }) {
   const subtitle = activePage === "car-park"
     ? "Live car park availability to help you plan your journey."
     : activePage === "train"
-      ? "Train"
+      ? "Live departures, platform information, and service updates."
       : "Fuel Price";
 
   return (
@@ -137,6 +137,208 @@ function EmptyServicePage({ activePage }) {
   return (
     <main className="page">
       <DashboardHeader activePage={activePage} />
+    </main>
+  );
+}
+
+function formatDepartureTime(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("en-AU", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: "Australia/Sydney",
+  }).format(date);
+}
+
+function formatTimeUntilDeparture(value) {
+  const departureTime = Date.parse(value);
+  if (!Number.isFinite(departureTime)) return "";
+  const minutesUntilDeparture = Math.max(0, Math.ceil((departureTime - Date.now()) / 60_000));
+  if (minutesUntilDeparture === 0) return "Departing now";
+  if (minutesUntilDeparture < 60) return `in ${minutesUntilDeparture} min`;
+  const hours = Math.floor(minutesUntilDeparture / 60);
+  const minutes = minutesUntilDeparture % 60;
+  return `in ${hours}h${minutes ? ` ${minutes}m` : ""}`;
+}
+
+function TrainPage() {
+  const [stations, setStations] = useState([]);
+  const [selectedStopId, setSelectedStopId] = useState("");
+  const [departures, setDepartures] = useState([]);
+  const [fetchedAt, setFetchedAt] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadStations() {
+      try {
+        const response = await fetch(`${process.env.API_BASE_URL}/api/trains/stations`, {
+          headers: { Accept: "application/json" },
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || `Request failed (${response.status})`);
+        if (!Array.isArray(payload.stations)) throw new Error("The train station list is invalid.");
+        if (isMounted) {
+          setStations(payload.stations);
+          setSelectedStopId(payload.stations[0]?.stopId ?? "");
+        }
+      } catch (loadError) {
+        if (isMounted) {
+          setError(loadError instanceof Error ? loadError.message : "Unable to load train stations.");
+          setIsLoading(false);
+        }
+      }
+    }
+    loadStations();
+    return () => { isMounted = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedStopId) return undefined;
+    let isMounted = true;
+    async function loadDepartures() {
+      try {
+        const response = await fetch(
+          `${process.env.API_BASE_URL}/api/trains?stopId=${encodeURIComponent(selectedStopId)}`,
+          { headers: { Accept: "application/json" } },
+        );
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || `Request failed (${response.status})`);
+        if (!Array.isArray(payload.departures)) throw new Error("The train departure list is invalid.");
+        if (isMounted) {
+          setDepartures(payload.departures);
+          setFetchedAt(payload.fetchedAt ?? null);
+          setHasLoaded(true);
+          setError("");
+        }
+      } catch (loadError) {
+        if (isMounted) {
+          setError(loadError instanceof Error ? loadError.message : "Unable to load train departures.");
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+    setIsLoading(true);
+    setDepartures([]);
+    setFetchedAt(null);
+    loadDepartures();
+    const intervalId = window.setInterval(loadDepartures, 12000);
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [selectedStopId]);
+
+  const selectedStation = stations.find((station) => station.stopId === selectedStopId);
+  const formattedFetchTime = formatFetchTime(fetchedAt);
+
+  return (
+    <main className="page">
+      <DashboardHeader activePage="train" />
+      <p
+        className="last-updated"
+        aria-live="polite"
+        aria-label={formattedFetchTime ? `Last updated ${formattedFetchTime}` : "Last updated time unavailable"}
+      >
+        Last updated: {formattedFetchTime || "—"}
+      </p>
+      <section className="train-section" aria-label="Train departures">
+        <div className="train-heading">
+          <div>
+            <span className="section-eyebrow">LIVE DEPARTURES</span>
+            <p className="filter-caption">
+              {selectedStation ? `Departures from ${selectedStation.name}` : "Choose a station"}
+            </p>
+          </div>
+          <div className="train-heading-meta">
+            <span className="train-result-count">
+              {departures.length} {departures.length === 1 ? "service" : "services"}
+            </span>
+            <span className="train-refresh-note">
+              <span className="train-live-dot" aria-hidden="true" />
+              Updates every 12 seconds
+            </span>
+          </div>
+        </div>
+        <div className="train-station-tabs" role="tablist" aria-label="Train station">
+          {stations.map((station) => (
+            <button
+              key={station.stopId}
+              className={`train-station-tab${selectedStopId === station.stopId ? " is-active" : ""}`}
+              type="button"
+              role="tab"
+              aria-selected={selectedStopId === station.stopId}
+              onClick={() => setSelectedStopId(station.stopId)}
+            >
+              {station.name}
+            </button>
+          ))}
+        </div>
+        {error && <div className="error" role="alert">{error}</div>}
+        <p className="train-table-hint">Scroll to view all departure details</p>
+        <div className="train-table-scroll">
+          <table className="train-table">
+            <thead>
+              <tr>
+                <th scope="col">Line</th>
+                <th scope="col">Destination</th>
+                <th scope="col">Scheduled</th>
+                <th scope="col">Estimated</th>
+                <th scope="col">Status</th>
+                <th scope="col">Platform</th>
+              </tr>
+            </thead>
+            <tbody>
+              {departures.map((departure) => {
+                const status = departure.status || "Status unavailable";
+                const statusClass = String(status).toLowerCase().replace(/\s+/g, "-");
+                return (
+                  <tr key={departure.id}>
+                    <td>
+                      <span className="train-line">{departure.service_number || "—"}</span>
+                    </td>
+                    <td>
+                      <span className="train-destination">{departure.destination || "Train service"}</span>
+                      <span className="train-countdown">
+                        {formatTimeUntilDeparture(departure.estimated_departure)}
+                      </span>
+                    </td>
+                    <td className="train-table-time">{formatDepartureTime(departure.planned_departure)}</td>
+                    <td className="train-table-time">
+                      {formatDepartureTime(departure.estimated_departure)}
+                      {departure.estimated_departure !== departure.planned_departure && (
+                        <span className="train-time-note">Live estimate</span>
+                      )}
+                    </td>
+                    <td>
+                      <span className={`train-status train-status-${statusClass}`}>
+                        <span className="train-status-dot" aria-hidden="true" />
+                        {status}
+                      </span>
+                    </td>
+                    <td>
+                      {departure.platform
+                        ? <span className="train-platform">{departure.platform}</span>
+                        : <span className="train-unavailable">—</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {!departures.length && (
+            <p className="train-empty" role={isLoading ? "status" : undefined}>
+              {isLoading ? "Loading train departures..." : hasLoaded ? "No upcoming departures available." : "No train departures available."}
+            </p>
+          )}
+        </div>
+      </section>
     </main>
   );
 }
@@ -471,7 +673,7 @@ function CarParkPage() {
 
 export default function App() {
   const pathname = window.location.pathname.replace(/\/+$/, "") || "/";
-  if (pathname === "/train") return <EmptyServicePage activePage="train" />;
+  if (pathname === "/train") return <TrainPage />;
   if (pathname === "/fuel-Price") return <EmptyServicePage activePage="fuel-Price" />;
   return <CarParkPage />;
 }
