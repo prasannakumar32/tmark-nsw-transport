@@ -286,6 +286,7 @@ function TrainPage() {
           <table className="train-table">
             <thead>
               <tr>
+                <th scope="col">Info</th>
                 <th scope="col">Line</th>
                 <th scope="col">Destination</th>
                 <th scope="col">Scheduled</th>
@@ -298,8 +299,25 @@ function TrainPage() {
               {departures.map((departure) => {
                 const status = departure.status || "Status unavailable";
                 const statusClass = String(status).toLowerCase().replace(/\s+/g, "-");
+                const speechText = String(departure.speech_text ?? "").trim();
+                const tooltipId = `train-info-${departure.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
                 return (
                   <tr key={departure.id}>
+                    <td className="train-info-cell">
+                      {speechText ? (
+                        <button
+                          className="train-info-button"
+                          type="button"
+                          aria-label={`Service information for ${departure.service_number || "train"} to ${departure.destination || "destination"}`}
+                          aria-describedby={tooltipId}
+                        >
+                          <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />
+                          <span className="train-tooltip" id={tooltipId} role="tooltip">
+                            {speechText}
+                          </span>
+                        </button>
+                      ) : <span className="train-unavailable">—</span>}
+                    </td>
                     <td>
                       <span className="train-line">{departure.service_number || "—"}</span>
                     </td>
