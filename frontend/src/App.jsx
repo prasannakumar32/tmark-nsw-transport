@@ -333,7 +333,7 @@ function TrainPage() {
                         : "status-unavailable";
                 const speechText = String(departure.speech_text ?? "").trim();
                 return (
-                  <tr key={departure.id}>
+                  <tr key={departure.id} className={`train-row-${statusClass}`}>
                     <td className="train-info-cell">
                       {speechText ? (
                         <TrainInfoButton departure={departure} speechText={speechText} />

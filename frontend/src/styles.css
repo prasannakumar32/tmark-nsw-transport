@@ -161,6 +161,14 @@ h1 { margin: 0 0 8px; color: var(--ink); font-size: clamp(30px, 4vw, 40px); font
 .train-table tbody tr { background: #fff; transition: background-color 120ms ease; }
 .train-table tbody tr:nth-child(even) { background: #f8fbf9; }
 .train-table tbody tr:hover { background: #eef7f2; }
+.train-table tbody tr.train-row-early { background: #d7eddd; }
+.train-table tbody tr.train-row-delayed { background: #fff6bf; }
+.train-table tbody tr.train-row-late-major,
+.train-table tbody tr.train-row-cancelled { background: #f8d7d4; }
+.train-table tbody tr.train-row-early:hover { background: #c9e6d1; }
+.train-table tbody tr.train-row-delayed:hover { background: #f9edaa; }
+.train-table tbody tr.train-row-late-major:hover,
+.train-table tbody tr.train-row-cancelled:hover { background: #f1c5c1; }
 .train-table tbody tr:last-child td { border-bottom: 0; }
 .train-table-hint { display: none; margin: 10px 16px 0; color: var(--muted); font-size: 10px; text-align: right; }
 .train-line { display: inline-flex; min-width: 32px; justify-content: center; padding: 5px 8px; border-radius: 6px; background: #e9f3f2; color: #145451; font-size: 11px; font-weight: 800; }
