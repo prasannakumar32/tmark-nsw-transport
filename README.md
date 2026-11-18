@@ -70,6 +70,20 @@ Configure these on the **car-park worker** service:
 
 Keep the Supabase key server-side; never add it to frontend build variables. Run exactly one car-park worker instance to avoid duplicate TfNSW polling. Use the platform's process manager to restart it if it exits.
 
+### PM2 train worker
+
+Run exactly one train worker instance:
+
+```sh
+pm2 stop tmark-train-worker 2>/dev/null || true
+pm2 delete tmark-train-worker 2>/dev/null || true
+pm2 start ecosystem.config.cjs --only tmark-train-worker --update-env
+pm2 save
+pm2 status
+```
+
+Do not run `pm2 start npm --name tmark-train-worker` repeatedly. That command can create duplicate worker processes.
+
 ## REST endpoints
 
 - `GET /api/carparks` — current car park rows and `fetchedAt` timestamp.
