@@ -105,6 +105,22 @@ function platformNumber(value) {
   return match?.[1] ?? null;
 }
 
+function speechTextFrom(event) {
+  if (!Array.isArray(event?.infos)) return "";
+  for (const info of event.infos) {
+    const speechText = info?.properties?.speechText;
+    if (typeof speechText === "string" && speechText.trim()) return speechText.trim();
+    if (Array.isArray(info?.infoLinks)) {
+      for (const link of info.infoLinks) {
+        if (typeof link?.speechText === "string" && link.speechText.trim()) {
+          return link.speechText.trim();
+        }
+      }
+    }
+  }
+  return "";
+}
+
 function stopEventsFrom(payload, station) {
   if (Array.isArray(payload?.stopEvents)) return payload.stopEvents;
   if (Array.isArray(payload?.locations)) {
@@ -171,13 +187,7 @@ function formatDepartures(payload, station, updatedAt) {
     const destinationName = String(destination).slice(0, 200);
     const lineName = String(line).trim().slice(0, 100);
     const platformName = platformNumber(platform);
-    const speechText = Array.isArray(event.infos)
-      ? [...new Set(event.infos
-          .map((info) => info?.properties?.speechText ?? info?.speechText)
-          .filter((comment) => typeof comment === "string" && comment.trim())
-          .map((comment) => comment.trim()))]
-          .join(" ")
-      : "";
+    const speechText = speechTextFrom(event);
 
     return {
       UpdatedAt: updatedAt,
