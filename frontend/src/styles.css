@@ -84,9 +84,9 @@ h1 { margin: 0 0 8px; color: var(--ink); font-size: clamp(30px, 4vw, 40px); font
 .train-station-tab:hover { border-color: #a9cbb8; background: #f6faf7; }
 .train-station-tab.is-active { border-color: var(--accent); background: var(--accent); color: #fff; box-shadow: 0 4px 10px rgb(15 122 104 / 18%); }
 .train-table-scroll { overflow-x: auto; }
-.train-table { width: 100%; min-width: 900px; border-collapse: separate; border-spacing: 0; table-layout: auto; }
+.train-table { width: 100%; min-width: 900px; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .train-table th { position: sticky; top: 0; z-index: 1; padding: 12px 14px; background: #123f40; color: #f5fbf8; font-size: 10px; font-weight: 750; letter-spacing: .07em; text-align: left; text-transform: uppercase; }
-.train-table th:first-child { width: 58px; text-align: center; }
+.train-table th:first-child, .train-table td:first-child { width: 44px; text-align: center; }
 .train-table th:nth-child(2) { width: 86px; }
 .train-table th:nth-child(4), .train-table th:nth-child(5) { width: 112px; }
 .train-table th:nth-child(6) { width: 130px; }
@@ -168,13 +168,16 @@ h1 { margin: 0 0 8px; color: var(--ink); font-size: clamp(30px, 4vw, 40px); font
 .train-countdown { display: block; margin-top: 3px; color: #71847a; font-size: 10px; }
 .train-table-time { color: #243f34 !important; font-size: 13px !important; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .train-time-note { display: block; margin-top: 3px; color: #71847a; font-size: 9px; font-weight: 500; }
-.train-status { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid #d5ecdd; border-radius: 999px; background: #edf8f0; color: #276344; font-size: 10px; font-weight: 750; white-space: nowrap; }
+.train-status { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid #e2e8e4; border-radius: 999px; background: #f4f6f5; color: #52665a; font-size: 10px; font-weight: 750; white-space: nowrap; }
 .train-status .train-status-dot { width: 6px; height: 6px; }
-.train-status-delayed { border-color: #f2dfb6; background: #fff7e5; color: #885b0b; }
+.train-status-early { border-color: #b8ddc1; background: #d7eddd; color: #276344; }
+.train-status-early .train-status-dot { background: #27b875; }
+.train-status-delayed { border-color: #f1e4a6; background: #fff6bf; color: #885b0b; }
 .train-status-delayed .train-status-dot { background: #d2921c; }
-.train-status-cancelled { border-color: #f0d3cf; background: #fff0ee; color: #9a3931; }
+.train-status-late-major, .train-status-cancelled { border-color: #f0d3cf; background: #f8d7d4; color: #9a3931; }
 .train-status-cancelled .train-status-dot { background: #c85750; }
-.train-status-status-unavailable { border-color: #e2e8e4; background: #f4f6f5; color: #65756c; }
+.train-status-late-major .train-status-dot { background: #c85750; }
+.train-status-status-unavailable { color: #65756c; }
 .train-status-status-unavailable .train-status-dot { background: #97a39c; }
 .train-platform { display: inline-grid; min-width: 28px; height: 28px; place-items: center; border: 1px solid #e0e9e3; border-radius: 8px; background: #fff; color: #35493d; font-size: 12px; font-weight: 750; }
 .train-unavailable { color: #9aa79f; }
@@ -438,6 +441,10 @@ tbody tr.availability-critical:hover { background: #f1c5c1; }
   .train-table th, .train-table td { padding-right: 11px; padding-left: 11px; }
   th { padding: 10px 12px; }
   td { padding: 13px 12px; }
+}
+
+@media (min-width: 761px) {
+  .train-table th:first-child, .train-table td:first-child { padding-right: 6px; padding-left: 6px; }
 }
 
 @media (max-width: 520px) {

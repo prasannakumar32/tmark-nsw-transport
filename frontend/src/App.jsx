@@ -320,7 +320,17 @@ function TrainPage() {
             <tbody>
               {departures.map((departure) => {
                 const status = departure.status || "Status unavailable";
-                const statusClass = String(status).toLowerCase().replace(/\s+/g, "-");
+                const normalizedStatus = String(status).toUpperCase();
+                const delayMinutes = Number(normalizedStatus.match(/^LATE\s+(\d+)/)?.[1]);
+                const statusClass = normalizedStatus.startsWith("EARLY")
+                  ? "early"
+                  : normalizedStatus.startsWith("LATE")
+                    ? delayMinutes > 2 ? "late-major" : "delayed"
+                    : normalizedStatus === "ON TIME"
+                      ? "on-time"
+                      : normalizedStatus === "CANCELLED"
+                        ? "cancelled"
+                        : "status-unavailable";
                 const speechText = String(departure.speech_text ?? "").trim();
                 return (
                   <tr key={departure.id}>
