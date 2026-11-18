@@ -171,7 +171,11 @@ function formatDepartures(payload, station, updatedAt) {
     const destinationName = String(destination).slice(0, 200);
     const lineName = String(line).trim().slice(0, 100);
     const platformName = platformNumber(platform);
-    const speechText = `${lineName ? `${lineName} ` : ""}train to ${destinationName || "its destination"}, ${status.toLowerCase()}${platformName ? `, platform ${platformName}` : ""}.`;
+    const speechText = String(
+      event.infos?.[0]?.properties?.speechText
+      ?? event.infos?.[0]?.speechText
+      ?? ""
+    ).trim();
 
     return {
       UpdatedAt: updatedAt,
