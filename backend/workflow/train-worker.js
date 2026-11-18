@@ -171,11 +171,13 @@ function formatDepartures(payload, station, updatedAt) {
     const destinationName = String(destination).slice(0, 200);
     const lineName = String(line).trim().slice(0, 100);
     const platformName = platformNumber(platform);
-    const speechText = String(
-      event.infos?.[0]?.properties?.speechText
-      ?? event.infos?.[0]?.speechText
-      ?? ""
-    ).trim();
+    const speechText = Array.isArray(event.infos)
+      ? [...new Set(event.infos
+          .map((info) => info?.properties?.speechText ?? info?.speechText)
+          .filter((comment) => typeof comment === "string" && comment.trim())
+          .map((comment) => comment.trim()))]
+          .join(" ")
+      : "";
 
     return {
       UpdatedAt: updatedAt,
