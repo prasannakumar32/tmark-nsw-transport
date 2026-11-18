@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 const suburbSelectionStorageKey = "tmark-nsw-transport:selected-suburbs";
 
@@ -164,6 +164,28 @@ function formatTimeUntilDeparture(value) {
   return `in ${hours}h${minutes ? ` ${minutes}m` : ""}`;
 }
 
+function TrainInfoButton({ departure, speechText }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const tooltipId = useId();
+
+  return (
+    <button
+      className={`train-info-button${isOpen ? " is-open" : ""}`}
+      type="button"
+      aria-label={`Service information for ${departure.service_number || "train"} to ${departure.destination || "destination"}`}
+      aria-describedby={tooltipId}
+      onClick={() => setIsOpen((open) => !open)}
+      onBlur={() => setIsOpen(false)}
+      onKeyDown={(event) => event.key === "Escape" && setIsOpen(false)}
+    >
+      <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />
+      <span className="train-tooltip" id={tooltipId} role="tooltip">
+        {speechText}
+      </span>
+    </button>
+  );
+}
+
 function TrainPage() {
   const [stations, setStations] = useState([]);
   const [selectedStopId, setSelectedStopId] = useState("");
@@ -300,23 +322,12 @@ function TrainPage() {
                 const status = departure.status || "Status unavailable";
                 const statusClass = String(status).toLowerCase().replace(/\s+/g, "-");
                 const speechText = String(departure.speech_text ?? "").trim();
-                const tooltipId = `train-info-${departure.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
                 return (
                   <tr key={departure.id}>
                     <td className="train-info-cell">
                       {speechText ? (
-                        <button
-                          className="train-info-button"
-                          type="button"
-                          aria-label={`Service information for ${departure.service_number || "train"} to ${departure.destination || "destination"}`}
-                          aria-describedby={tooltipId}
-                        >
-                          <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />
-                          <span className="train-tooltip" id={tooltipId} role="tooltip">
-                            {speechText}
-                          </span>
-                        </button>
-                      ) : <span className="train-unavailable">—</span>}
+                        <TrainInfoButton departure={departure} speechText={speechText} />
+                      ) : null}
                     </td>
                     <td>
                       <span className="train-line">{departure.service_number || "—"}</span>

@@ -115,12 +115,14 @@ h1 { margin: 0 0 8px; color: var(--ink); font-size: clamp(30px, 4vw, 40px); font
   outline: 3px solid #7fceb7;
   outline-offset: 2px;
 }
+.train-info-button.is-open { z-index: 20; }
 .train-tooltip {
   position: absolute;
-  z-index: 20;
-  left: calc(100% + 10px);
-  top: 50%;
-  width: min(360px, calc(100vw - 120px));
+  z-index: 1000;
+  top: calc(100% + 8px);
+  bottom: auto;
+  left: 0;
+  width: min(360px, calc(100vw - 32px));
   max-height: min(50vh, 320px);
   overflow-y: auto;
   padding: 10px 12px;
@@ -138,13 +140,12 @@ h1 { margin: 0 0 8px; color: var(--ink); font-size: clamp(30px, 4vw, 40px); font
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transform: translate(-4px, -50%);
-  transition: opacity 140ms ease, transform 140ms ease, visibility 140ms ease;
+  transition: opacity 140ms ease, visibility 140ms ease;
 }
 .train-tooltip::before {
   position: absolute;
-  left: -5px;
-  top: calc(50% - 5px);
+  left: 12px;
+  top: -5px;
   width: 10px;
   height: 10px;
   background: #202426;
@@ -152,10 +153,10 @@ h1 { margin: 0 0 8px; color: var(--ink); font-size: clamp(30px, 4vw, 40px); font
   transform: rotate(45deg);
 }
 .train-info-button:hover .train-tooltip,
-.train-info-button:focus-visible .train-tooltip {
+.train-info-button:focus-visible .train-tooltip,
+.train-info-button.is-open .train-tooltip {
   opacity: 1;
   visibility: visible;
-  transform: translate(0, -50%);
 }
 .train-table tbody tr { background: #fff; transition: background-color 120ms ease; }
 .train-table tbody tr:nth-child(even) { background: #f8fbf9; }
@@ -468,7 +469,7 @@ tbody tr.availability-critical:hover { background: #f1c5c1; }
   .suburb-cancel, .suburb-save { flex: 1; }
   .train-heading { align-items: flex-start; flex-direction: column; gap: 12px; padding-top: 16px; padding-bottom: 12px; }
   .train-heading-meta { width: 100%; justify-content: space-between; gap: 8px; }
-  .train-table { min-width: 760px; }
+  .train-tooltip { padding: 12px; font-size: 14px; line-height: 1.5; }
   .train-section > .error { margin-right: 16px; margin-left: 16px; }
 }
 
@@ -477,8 +478,6 @@ tbody tr.availability-critical:hover { background: #f1c5c1; }
   .suburb-trigger { gap: 7px; font-size: 11px; }
   .suburb-count { padding: 3px 6px; }
   .suburb-menu-actions button { font-size: 11px; }
-  .train-table { min-width: 740px; }
-  .train-table th, .train-table td { padding-right: 9px; padding-left: 9px; }
   th { padding: 9px 10px; }
   td { padding: 12px 10px; }
   .name { font-size: 12px; }
@@ -488,11 +487,30 @@ tbody tr.availability-critical:hover { background: #f1c5c1; }
 
 @media (max-width: 600px) {
   table { min-width: 0; }
-  th:nth-child(2), td:nth-child(2),
-  th:nth-child(3), td:nth-child(3),
-  th:nth-child(4), td:nth-child(4) { display: none; }
-  th:first-child, td:first-child { width: 58%; }
-  th:last-child, td:last-child { width: 42%; }
+  .train-section, .train-table-scroll { overflow: visible; }
+  .tablewrap th:nth-child(2), .tablewrap td:nth-child(2),
+  .tablewrap th:nth-child(3), .tablewrap td:nth-child(3),
+  .tablewrap th:nth-child(4), .tablewrap td:nth-child(4) { display: none; }
+  .tablewrap th:first-child, .tablewrap td:first-child { width: 58%; }
+  .tablewrap th:last-child, .tablewrap td:last-child { width: 42%; }
+  .train-table-hint { display: none; }
+  .train-table { width: 100%; min-width: 0; table-layout: fixed; }
+  .train-table th, .train-table td { padding: 8px 3px; }
+  .train-table td { font-size: 10px; }
+  .train-table th:first-child, .train-table td:first-child { width: 12%; }
+  .train-table th:nth-child(2), .train-table td:nth-child(2) { width: 11%; }
+  .train-table th:nth-child(3), .train-table td:nth-child(3) { width: 23%; }
+  .train-table th:nth-child(4), .train-table td:nth-child(4) { width: 16%; }
+  .train-table th:nth-child(5), .train-table td:nth-child(5) { display: none; }
+  .train-table th:nth-child(6), .train-table td:nth-child(6) { width: 22%; }
+  .train-table th:last-child, .train-table td:last-child { width: 16%; }
+  .train-table th { font-size: 7px; letter-spacing: 0; }
+  .train-line { min-width: 0; padding: 3px 4px; font-size: 9px; }
+  .train-info-button { width: 30px; height: 30px; font-size: 14px; touch-action: manipulation; }
+  .train-destination { font-size: 11px; }
+  .train-countdown { font-size: 9px; }
+  .train-table-time { font-size: 10px !important; }
+  .train-status { max-width: 100%; flex-wrap: wrap; gap: 3px; padding: 3px 4px; font-size: 8px; white-space: normal; }
   .availability-bar { display: flex; width: 100%; }
   .availability-percent { margin-top: 0; }
 }
