@@ -1,6 +1,19 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 const suburbSelectionStorageKey = "tmark-nsw-transport:selected-suburbs";
+const trainStationStorageKey = "tmark-nsw-transport:selected-train-station";
+
+function readStoredTrainStation() {
+  try {
+    return { stopId: window.localStorage.getItem(trainStationStorageKey), error: "" };
+  } catch (storageError) {
+    console.error("Unable to restore the saved train station:", storageError);
+    return {
+      stopId: null,
+      error: "Unable to restore the saved train station from this browser.",
+    };
+  }
+}
 
 function readStoredSuburbSelection() {
   try {
@@ -187,6 +200,7 @@ function TrainInfoButton({ departure, speechText }) {
 }
 
 function TrainPage() {
+  const [initialStationSelection] = useState(readStoredTrainStation);
   const [stations, setStations] = useState([]);
   const [selectedStopId, setSelectedStopId] = useState("");
   const [departures, setDepartures] = useState([]);
@@ -194,6 +208,7 @@ function TrainPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState("");
+  const [stationStorageError, setStationStorageError] = useState(initialStationSelection.error);
 
   useEffect(() => {
     let isMounted = true;
@@ -207,7 +222,10 @@ function TrainPage() {
         if (!Array.isArray(payload.stations)) throw new Error("The train station list is invalid.");
         if (isMounted) {
           setStations(payload.stations);
-          setSelectedStopId(payload.stations[0]?.stopId ?? "");
+          const savedStation = payload.stations.find(
+            (station) => station.stopId === initialStationSelection.stopId,
+          );
+          setSelectedStopId(savedStation?.stopId ?? payload.stations[0]?.stopId ?? "");
         }
       } catch (loadError) {
         if (isMounted) {
@@ -219,6 +237,17 @@ function TrainPage() {
     loadStations();
     return () => { isMounted = false; };
   }, []);
+
+  function selectStation(stopId) {
+    setSelectedStopId(stopId);
+    try {
+      window.localStorage.setItem(trainStationStorageKey, stopId);
+      setStationStorageError("");
+    } catch (storageError) {
+      console.error("Unable to save the selected train station:", storageError);
+      setStationStorageError("Your train station selection could not be saved in this browser.");
+    }
+  }
 
   useEffect(() => {
     if (!selectedStopId) return undefined;
@@ -296,13 +325,14 @@ function TrainPage() {
               type="button"
               role="tab"
               aria-selected={selectedStopId === station.stopId}
-              onClick={() => setSelectedStopId(station.stopId)}
+              onClick={() => selectStation(station.stopId)}
             >
               {station.name}
             </button>
           ))}
         </div>
         {error && <div className="error" role="alert">{error}</div>}
+        {stationStorageError && <div className="error" role="alert">{stationStorageError}</div>}
         <p className="train-table-hint">Scroll to view all departure details</p>
         <div className="train-table-scroll">
           <table className="train-table">
