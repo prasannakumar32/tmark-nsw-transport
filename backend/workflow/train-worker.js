@@ -3,6 +3,7 @@ import path from "node:path";
 import { backendDir, requiredEnv, supabaseKey } from "../shared/env.js";
 import { requestJson, syncDepartures } from "../shared/supabase.js";
 import { cleanTfnswApiKey, isTfnswTrain } from "../shared/tfnsw.js";
+import { tfnswTimestampAsIso } from "../shared/tfnsw-timestamp.js";
 
 const {
   TFNSW_API_KEY,
@@ -79,14 +80,11 @@ function localDateAndTime(timestamp) {
 }
 
 function asIsoTimestamp(value, label, stopId) {
-  if (value === null || value === undefined || value === "") return null;
-  const parsed = /^\d{9,10}$/.test(String(value))
-    ? Number(value) * 1000
-    : Date.parse(value);
-  if (!Number.isFinite(parsed)) {
+  const parsed = tfnswTimestampAsIso(value);
+  if (!parsed) {
     throw new Error(`TfNSW returned an invalid ${label} for stop ${stopId}.`);
   }
-  return new Date(parsed).toISOString();
+  return parsed;
 }
 
 function propertyValue(properties, name) {
@@ -257,6 +255,15 @@ async function syncStations() {
   }
 }
 
+function scheduleSync(delay) {
+  setTimeout(() => {
+    void runScheduledSync().catch((error) => {
+      console.error("[Train worker] Scheduled sync loop failed:", error.message);
+      scheduleSync(60_000);
+    });
+  }, delay);
+}
+
 async function runScheduledSync() {
   let nextDelay;
   try {
@@ -267,10 +274,15 @@ async function runScheduledSync() {
   }
 
   console.info(`[Train worker] Starting sync at ${new Date().toISOString()}.`);
-  await syncStations();
-  const delay = Math.max(nextDelay, rateLimitUntil - Date.now(), 0);
-  console.info(`[Train worker] Next sync scheduled in ${Math.ceil(delay / 1000)} seconds.`);
-  setTimeout(runScheduledSync, delay);
+  try {
+    await syncStations();
+  } catch (error) {
+    console.error("[Train worker] Scheduled sync failed:", error.message);
+  } finally {
+    const delay = Math.max(nextDelay, rateLimitUntil - Date.now(), 0);
+    console.info(`[Train worker] Next sync scheduled in ${Math.ceil(delay / 1000)} seconds.`);
+    scheduleSync(delay);
+  }
 }
 
 requiredEnv(TFNSW_API_KEY, "TFNSW_API_KEY");

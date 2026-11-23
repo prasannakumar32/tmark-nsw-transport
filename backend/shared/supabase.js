@@ -1,4 +1,5 @@
 import { requiredEnv, supabaseKey, supabaseUrl } from "./env.js";
+import { tfnswTimestampAsIso } from "./tfnsw-timestamp.js";
 
 function tableUrl(tableName) {
   if (!/^[a-z][a-z0-9_]*$/.test(tableName)) {
@@ -21,7 +22,10 @@ export function supabaseHeaders(extraHeaders = {}) {
 }
 
 export async function requestJson(url, options, serviceName) {
-  const response = await fetch(url, options);
+  const response = await fetch(url, {
+    ...options,
+    signal: AbortSignal.timeout(15_000),
+  });
   const responseText = await response.text();
   if (!response.ok) {
     const error = new Error(`${serviceName} request failed (${response.status}): ${responseText.slice(0, 300)}`);
@@ -132,9 +136,5 @@ export async function syncDepartures(stopId, scannedAt, departures) {
 }
 
 function timestampAsUtcIso(value) {
-  if (value === null || value === undefined || value === "") return null;
-  const timestamp = String(value).trim();
-  const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(timestamp);
-  const parsed = Date.parse(hasTimezone ? timestamp : `${timestamp.replace(" ", "T")}Z`);
-  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
+  return tfnswTimestampAsIso(value);
 }

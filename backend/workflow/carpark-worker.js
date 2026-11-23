@@ -4,6 +4,7 @@ import { performance } from "node:perf_hooks";
 import { backendDir, requiredEnv, supabaseKey } from "../shared/env.js";
 import { requestJson, upsertCarparks } from "../shared/supabase.js";
 import { cleanTfnswApiKey } from "../shared/tfnsw.js";
+import { tfnswTimestampAsIso } from "../shared/tfnsw-timestamp.js";
 
 const {
   TFNSW_API_KEY,
@@ -58,11 +59,7 @@ function scheduledSyncDelayMilliseconds(timestamp = Date.now()) {
 }
 
 function normaliseTimestamp(value) {
-  if (value === null || value === undefined || value === "") return null;
-  const timestamp = /^\d{9,10}$/.test(String(value))
-    ? Date.UTC(2000, 0, 1) + Number(value) * 1000
-    : Date.parse(value);
-  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null;
+  return tfnswTimestampAsIso(value);
 }
 
 function requiredNumber(value, label, facilityId) {
