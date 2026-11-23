@@ -11,6 +11,7 @@ module.exports = (_env, argv) => {
 
   return {
     entry: "./src/main.jsx",
+    devtool: argv.mode === "development" ? "source-map" : false,
     output: {
       path: path.resolve(__dirname, "dist"),
       filename: "assets/[name].[contenthash].js",

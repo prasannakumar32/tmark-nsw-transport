@@ -809,9 +809,39 @@ function CarParkPage({ onNavigate }) {
   );
 }
 
+function normalizePathname(pathname) {
+  return pathname.toLowerCase().replace(/\/+$/, "") || "/";
+}
+
+function NotFoundPage({ onNavigate }) {
+  return (
+    <main className="page">
+      <DashboardHeader activePage="" onNavigate={onNavigate} />
+      <div className="error" role="alert">
+        Page not found. <a href="/" onClick={(event) => handleNavigation(event, "/", onNavigate)}>Return to Car Park</a>
+      </div>
+    </main>
+  );
+}
+
 export default function App() {
-  const pathname = window.location.pathname.replace(/\/+$/, "") || "/";
-  if (pathname === "/train") return <TrainPage />;
-  if (pathname === "/fuel-Price") return <EmptyServicePage activePage="fuel-Price" />;
-  return <CarParkPage />;
+  const [pathname, setPathname] = useState(() => normalizePathname(window.location.pathname));
+
+  useEffect(() => {
+    const handlePopState = () => setPathname(normalizePathname(window.location.pathname));
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  function navigate(path) {
+    window.history.pushState({}, "", path);
+    setPathname(normalizePathname(path));
+  }
+
+  if (pathname === "/") return <CarParkPage onNavigate={navigate} />;
+  if (pathname === "/train") return <TrainPage onNavigate={navigate} />;
+  if (pathname === "/fuel-price") {
+    return <EmptyServicePage activePage="fuel-price" onNavigate={navigate} />;
+  }
+  return <NotFoundPage onNavigate={navigate} />;
 }
