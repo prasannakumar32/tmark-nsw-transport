@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "webpack --mode production",
+    "build:dev": "webpack --mode development",
     "serve": "node serve.js"
   },
   "dependencies": {

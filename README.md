@@ -21,10 +21,10 @@ Requires Node.js 18 or newer.
    ```sh
    npm install
    ```
-6. Build the frontend bundle:
+6. Build the frontend bundle for local development:
 
    ```sh
-   npm run build
+   npm run build:dev --workspace=frontend
    ```
 
 Run each service in a separate terminal:
@@ -35,11 +35,11 @@ npm run dev:api
 npm run dev:frontend
 ```
 
-The API listens on `http://localhost:4000`; the static frontend serves the built files on `http://localhost:9000`. The frontend development command builds once before serving, so rebuild with `npm run build` after frontend changes. The workflow performs an initial sync on startup and then follows the schedule in [`backend/workflow/adaptive-delay.json`](./backend/workflow/adaptive-delay.json).
+The API listens on `http://localhost:4000`; the static frontend serves the built files on `http://localhost:9000`. The frontend development command builds once before serving, so rebuild with `npm run build:dev --workspace=frontend` after frontend changes. The workflow performs an initial sync on startup and then follows the schedule in [`backend/workflow/adaptive-delay.json`](./backend/workflow/adaptive-delay.json).
 
 ## Production build and deployment
 
-Build the static frontend with the public URL of the deployed REST API:
+Build the static frontend with the public URL of the deployed REST API. Production builds fail if `API_BASE_URL` is unset, preventing a bundle from silently targeting localhost:
 
 ```powershell
 $env:API_BASE_URL = "https://api.example.com"
