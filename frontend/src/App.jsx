@@ -191,21 +191,32 @@ function TrainInfoButton({ departure, speechText }) {
   const tooltipId = useId();
 
   return (
-    <button
-      className={`train-info-button${isOpen ? " is-open" : ""}`}
-      type="button"
-      aria-label={`Service information for ${departure.service_number || "train"} to ${departure.destination || "destination"}`}
-      aria-describedby={tooltipId}
-      aria-expanded={isOpen}
-      onClick={() => setIsOpen((open) => !open)}
-      onBlur={() => setIsOpen(false)}
-      onKeyDown={(event) => event.key === "Escape" && setIsOpen(false)}
+    <span
+      className={`train-info${isOpen ? " is-open" : ""}`}
+      onMouseLeave={() => setIsOpen(false)}
     >
-      <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />
+      <button
+        className="train-info-button"
+        type="button"
+        aria-label={`Service information for ${departure.service_number || "train"} to ${departure.destination || "destination"}`}
+        aria-describedby={tooltipId}
+        onClick={() => setIsOpen((open) => !open)}
+        onBlur={(event) => {
+          if (!event.currentTarget.parentElement.matches(":hover")) setIsOpen(false);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            setIsOpen(false);
+            event.currentTarget.blur();
+          }
+        }}
+      >
+        <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />
+      </button>
       <span className="train-tooltip" id={tooltipId} role="tooltip">
         {speechText}
       </span>
-    </button>
+    </span>
   );
 }
 

@@ -94,8 +94,9 @@ h1 { margin: 0 0 8px; color: var(--ink); font-size: clamp(30px, 4vw, 40px); font
 .train-table th:last-child { width: 90px; }
 .train-table td { padding: 12px 14px; border-bottom: 1px solid #edf2ee; color: #34463d; font-size: 12px; vertical-align: middle; }
 .train-info-cell { position: relative; text-align: center; }
+.train-info { position: relative; display: inline-block; }
+.train-info.is-open { z-index: 20; }
 .train-info-button {
-  position: relative;
   display: inline-grid;
   width: 30px;
   height: 30px;
@@ -116,11 +117,10 @@ h1 { margin: 0 0 8px; color: var(--ink); font-size: clamp(30px, 4vw, 40px); font
   outline: 3px solid #7fceb7;
   outline-offset: 2px;
 }
-.train-info-button.is-open { z-index: 20; }
 .train-tooltip {
   position: absolute;
   z-index: 1000;
-  top: calc(100% + 8px);
+  top: 100%;
   bottom: auto;
   left: 0;
   width: min(360px, calc(100vw - 32px));
@@ -135,6 +135,7 @@ h1 { margin: 0 0 8px; color: var(--ink); font-size: clamp(30px, 4vw, 40px); font
   font-weight: 500;
   line-height: 1.45;
   text-align: left;
+  cursor: auto;
   white-space: pre-line;
   overflow-wrap: anywhere;
   box-shadow: 0 8px 20px rgba(15, 29, 33, 0.22);
@@ -153,11 +154,12 @@ h1 { margin: 0 0 8px; color: var(--ink); font-size: clamp(30px, 4vw, 40px); font
   content: "";
   transform: rotate(45deg);
 }
-.train-info-button:hover .train-tooltip,
-.train-info-button:focus-visible .train-tooltip,
-.train-info-button.is-open .train-tooltip {
+.train-info:hover .train-tooltip,
+.train-info:focus-within .train-tooltip,
+.train-info.is-open .train-tooltip {
   opacity: 1;
   visibility: visible;
+  pointer-events: auto;
 }
 .train-table tbody tr { background: #fff; transition: background-color 120ms ease; }
 .train-table tbody tr:nth-child(even) { background: #f8fbf9; }
