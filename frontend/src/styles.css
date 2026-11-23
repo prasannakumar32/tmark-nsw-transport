@@ -456,6 +456,21 @@ tbody tr.availability-critical:hover { background: #f1c5c1; }
   .train-table th, .train-table td { padding-right: 11px; padding-left: 11px; }
   th { padding: 10px 12px; }
   td { padding: 13px 12px; }
+  .train-tooltip {
+    position: fixed;
+    top: auto;
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: max(12px, env(safe-area-inset-left));
+    width: auto;
+    max-height: min(50vh, 320px);
+    max-height: min(50dvh, 320px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+  .train-tooltip::before { display: none; }
 }
 
 @media (min-width: 761px) {
