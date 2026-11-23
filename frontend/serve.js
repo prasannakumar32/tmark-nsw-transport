@@ -6,6 +6,24 @@ import { fileURLToPath } from "node:url";
 const distDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "dist");
 const host = process.env.HOST || "127.0.0.1";
 const port = Number(process.env.FRONTEND_PORT || 9000);
+const configuredApiBaseUrl = process.env.API_BASE_URL ?? "http://localhost:4000";
+const apiUrl = configuredApiBaseUrl ? new URL(configuredApiBaseUrl) : null;
+if (apiUrl && !["http:", "https:"].includes(apiUrl.protocol)) {
+  throw new Error("API_BASE_URL must use HTTP or HTTPS.");
+}
+const apiConnectSource = apiUrl?.origin ?? "'self'";
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "img-src 'self' data:",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+  "font-src 'self' https://cdn.jsdelivr.net",
+  `connect-src 'self' ${apiConnectSource}`,
+].join("; ");
 const contentTypes = {
   ".css": "text/css; charset=utf-8",
   ".html": "text/html; charset=utf-8",
@@ -23,6 +41,12 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 }
 
 const server = createServer(async (req, res) => {
+  res.setHeader("Content-Security-Policy", contentSecurityPolicy);
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Permissions-Policy", "camera=(), geolocation=(), microphone=()");
+
   if (req.method !== "GET" && req.method !== "HEAD") {
     res.writeHead(405, { Allow: "GET, HEAD" });
     return res.end();
@@ -43,6 +67,8 @@ const server = createServer(async (req, res) => {
     return res.end("Invalid URL path");
   }
 
+  const normalizedPath = pathname.toLowerCase().replace(/\/+$/, "") || "/";
+  const isKnownRoute = ["/", "/train", "/fuel-price"].includes(normalizedPath);
   let resolvedPath = filePath;
   try {
     const stats = await fs.promises.stat(resolvedPath);
@@ -56,6 +82,10 @@ const server = createServer(async (req, res) => {
     if (path.extname(pathname)) {
       res.writeHead(404);
       return res.end("Not found");
+    }
+    if (!isKnownRoute) {
+      res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
+      return res.end("<!doctype html><title>Not found</title><h1>Page not found</h1><a href=\"/\">Return to Car Park</a>");
     }
     resolvedPath = path.join(distDir, "index.html");
   }

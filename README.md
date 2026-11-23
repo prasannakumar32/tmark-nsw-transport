@@ -46,7 +46,7 @@ $env:API_BASE_URL = "https://api.example.com"
 npm run build
 ```
 
-Deploy `frontend/dist` to a static hosting provider. `API_BASE_URL` is embedded in the frontend bundle at build time and must be an API origin, without a trailing slash. If the frontend and API are on the same origin behind a reverse proxy, it can be set to an empty string so requests use `/api`.
+Deploy `frontend/dist` to a static hosting provider. `API_BASE_URL` is embedded in the frontend bundle at build time and must be an API origin, without a trailing slash. If the frontend is served with `frontend/serve.js`, set the same `API_BASE_URL` in the serving process so its Content Security Policy allows the API origin. If the frontend and API are on the same origin behind a reverse proxy, it can be set to an empty string so requests use `/api`.
 
 Deploy the backend as two separate Node.js processes using the repository root:
 
@@ -57,10 +57,10 @@ npm run start:carpark-worker
 
 Configure these environment variables on the **API** service:
 
-- `SUPABASE_URL` (optional; defaults to the project URL in this repository)
+- `SUPABASE_URL`
 - `SUPABASE_SECRET_KEY` (or legacy `SUPABASE_SERVICE_ROLE_KEY`)
 - `API_PORT` (optional; defaults to `4000`; `PORT` is also accepted)
-- `CORS_ORIGIN` — comma-separated allowed frontend origins, for example `https://dashboard.example.com`
+- `CORS_ORIGIN` — comma-separated allowed frontend origins, for example `https://dashboard.example.com`; `*` allows any origin
 
 Configure these on the **car-park worker** service:
 

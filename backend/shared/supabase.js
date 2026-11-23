@@ -66,7 +66,7 @@ export async function readCarparks() {
       address: row.address,
       spots: row.total_spots,
       occupied: row.occupied,
-      available: row.available,
+      available: row.available == null ? row.available : Math.max(Number(row.available), 0),
       percentFull,
     };
   });
@@ -86,6 +86,9 @@ export async function upsertCarparks(facilities) {
 }
 
 export async function readDepartures(stopId) {
+  if (typeof stopId !== "string" || !/^\d+$/.test(stopId)) {
+    throw new Error("Invalid train stop ID.");
+  }
   const url = tableUrl("train_departures");
   url.searchParams.set(
     "select",

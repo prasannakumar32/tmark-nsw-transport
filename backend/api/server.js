@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import fs from "node:fs";
 import path from "node:path";
-import { backendDir, supabaseKey } from "../shared/env.js";
+import { backendDir, requiredEnv, supabaseKey, supabaseUrl } from "../shared/env.js";
 import { readCarparks, readDepartures } from "../shared/supabase.js";
 
 const trainConfigPath = path.join(backendDir, "workflow", "train-config.json");
@@ -17,6 +17,7 @@ const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:9000,http:/
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
+const allowAnyOrigin = allowedOrigins.includes("*");
 
 function sendJson(res, status, body, headers = {}) {
   const content = JSON.stringify(body);
@@ -40,8 +41,8 @@ function sendUpstreamError(res, error, message) {
 function applyCors(req, res) {
   const origin = req.headers.origin;
   res.setHeader("Vary", "Origin");
-  if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
+  if (origin && (allowAnyOrigin || allowedOrigins.includes(origin))) {
+    res.setHeader("Access-Control-Allow-Origin", allowAnyOrigin ? "*" : origin);
     res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Accept");
     res.setHeader("Access-Control-Expose-Headers", "Retry-After");
@@ -50,9 +51,14 @@ function applyCors(req, res) {
 
 async function handleRequest(req, res) {
   applyCors(req, res);
-  const requestUrl = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+  let requestUrl;
+  try {
+    requestUrl = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+  } catch {
+    return sendJson(res, 400, { error: "Invalid request URL or Host header." });
+  }
   if (req.method === "OPTIONS") {
-    if (req.headers.origin && !allowedOrigins.includes(req.headers.origin)) {
+    if (req.headers.origin && !allowAnyOrigin && !allowedOrigins.includes(req.headers.origin)) {
       return sendJson(res, 403, { error: "Origin not allowed" });
     }
     res.writeHead(204);
@@ -112,6 +118,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 if (!supabaseKey) {
   throw new Error("SUPABASE_SECRET_KEY is not set. Configure it for the API service.");
 }
+requiredEnv(supabaseUrl, "SUPABASE_URL");
 
 const server = createServer((req, res) => {
   handleRequest(req, res).catch((error) => {

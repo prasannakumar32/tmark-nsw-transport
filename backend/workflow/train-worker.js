@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { backendDir, requiredEnv, supabaseKey } from "../shared/env.js";
+import { backendDir, requiredEnv, supabaseKey, supabaseUrl } from "../shared/env.js";
 import { requestJson, syncDepartures } from "../shared/supabase.js";
 import { cleanTfnswApiKey, isTfnswTrain } from "../shared/tfnsw.js";
 import { tfnswTimestampAsIso } from "../shared/tfnsw-timestamp.js";
@@ -304,5 +304,6 @@ async function runScheduledSync() {
 
 requiredEnv(TFNSW_API_KEY, "TFNSW_API_KEY");
 requiredEnv(supabaseKey, "SUPABASE_SECRET_KEY");
+requiredEnv(supabaseUrl, "SUPABASE_URL");
 console.info("[Train worker] TfNSW train departure sync worker started.");
 void runScheduledSync();

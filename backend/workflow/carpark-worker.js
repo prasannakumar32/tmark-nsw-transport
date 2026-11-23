@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
-import { backendDir, requiredEnv, supabaseKey } from "../shared/env.js";
+import { backendDir, requiredEnv, supabaseKey, supabaseUrl } from "../shared/env.js";
 import { requestJson, upsertCarparks } from "../shared/supabase.js";
 import { cleanTfnswApiKey } from "../shared/tfnsw.js";
 import { tfnswTimestampAsIso } from "../shared/tfnsw-timestamp.js";
@@ -94,7 +94,7 @@ function normaliseFacility(raw, requestedId) {
     address: raw.location?.address ?? null,
     total_spots: totalSpots,
     occupied,
-    available: totalSpots - occupied,
+    available: Math.max(totalSpots - occupied, 0),
     message_date: normaliseTimestamp(raw.MessageDate ?? raw.message_date ?? raw.time),
     updated_at: new Date().toISOString(),
   };
@@ -270,5 +270,6 @@ async function runScheduledSync() {
 
 requiredEnv(TFNSW_API_KEY, "TFNSW_API_KEY");
 requiredEnv(supabaseKey, "SUPABASE_SECRET_KEY");
+requiredEnv(supabaseUrl, "SUPABASE_URL");
 console.info("TfNSW Car Park Occupancy Sync Worker started.");
 void runScheduledSync();

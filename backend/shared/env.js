@@ -25,5 +25,5 @@ export function requiredEnv(value, name) {
   return value;
 }
 
-export const supabaseUrl = process.env.SUPABASE_URL || "https://iaqwzvnjpfdojnbrlgpz.supabase.co";
+export const supabaseUrl = process.env.SUPABASE_URL;
 export const supabaseKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;

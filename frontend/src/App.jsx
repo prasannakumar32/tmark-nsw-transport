@@ -103,7 +103,13 @@ function CarParkRow({ park }) {
   );
 }
 
-function DashboardHeader({ activePage }) {
+function handleNavigation(event, path, onNavigate) {
+  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  onNavigate(path);
+}
+
+function DashboardHeader({ activePage, onNavigate }) {
   const subtitle = activePage === "car-park"
     ? "Live car park availability to help you plan your journey."
     : activePage === "train"
@@ -121,6 +127,7 @@ function DashboardHeader({ activePage }) {
           className={`dashboard-nav-item${activePage === "car-park" ? " is-active" : ""}`}
           href="/"
           aria-current={activePage === "car-park" ? "page" : undefined}
+          onClick={(event) => handleNavigation(event, "/", onNavigate)}
         >
           <i className="fa-solid fa-square-parking" aria-hidden="true" />
           <span>Car Park</span>
@@ -129,14 +136,16 @@ function DashboardHeader({ activePage }) {
           className={`dashboard-nav-item${activePage === "train" ? " is-active" : ""}`}
           href="/train"
           aria-current={activePage === "train" ? "page" : undefined}
+          onClick={(event) => handleNavigation(event, "/train", onNavigate)}
         >
           <i className="fa-solid fa-train" aria-hidden="true" />
           <span>Train</span>
         </a>
         <a
-          className={`dashboard-nav-item${activePage === "fuel-Price" ? " is-active" : ""}`}
-          href="/fuel-Price"
-          aria-current={activePage === "fuel-Price" ? "page" : undefined}
+          className={`dashboard-nav-item${activePage === "fuel-price" ? " is-active" : ""}`}
+          href="/fuel-price"
+          aria-current={activePage === "fuel-price" ? "page" : undefined}
+          onClick={(event) => handleNavigation(event, "/fuel-price", onNavigate)}
         >
           <i className="fa-solid fa-gas-pump" aria-hidden="true" />
           <span>Fuel Price</span>
@@ -146,10 +155,10 @@ function DashboardHeader({ activePage }) {
   );
 }
 
-function EmptyServicePage({ activePage }) {
+function EmptyServicePage({ activePage, onNavigate }) {
   return (
     <main className="page">
-      <DashboardHeader activePage={activePage} />
+      <DashboardHeader activePage={activePage} onNavigate={onNavigate} />
     </main>
   );
 }
@@ -166,10 +175,10 @@ function formatDepartureTime(value) {
   }).format(date);
 }
 
-function formatTimeUntilDeparture(value) {
+function formatTimeUntilDeparture(value, now) {
   const departureTime = Date.parse(value);
   if (!Number.isFinite(departureTime)) return "";
-  const minutesUntilDeparture = Math.max(0, Math.ceil((departureTime - Date.now()) / 60_000));
+  const minutesUntilDeparture = Math.max(0, Math.ceil((departureTime - now) / 60_000));
   if (minutesUntilDeparture === 0) return "Departing now";
   if (minutesUntilDeparture < 60) return `in ${minutesUntilDeparture} min`;
   const hours = Math.floor(minutesUntilDeparture / 60);
@@ -187,6 +196,7 @@ function TrainInfoButton({ departure, speechText }) {
       type="button"
       aria-label={`Service information for ${departure.service_number || "train"} to ${departure.destination || "destination"}`}
       aria-describedby={tooltipId}
+      aria-expanded={isOpen}
       onClick={() => setIsOpen((open) => !open)}
       onBlur={() => setIsOpen(false)}
       onKeyDown={(event) => event.key === "Escape" && setIsOpen(false)}
@@ -199,16 +209,22 @@ function TrainInfoButton({ departure, speechText }) {
   );
 }
 
-function TrainPage() {
+function TrainPage({ onNavigate }) {
   const [initialStationSelection] = useState(readStoredTrainStation);
   const [stations, setStations] = useState([]);
   const [selectedStopId, setSelectedStopId] = useState("");
   const [departures, setDepartures] = useState([]);
   const [fetchedAt, setFetchedAt] = useState(null);
+  const [now, setNow] = useState(Date.now);
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState("");
   const [stationStorageError, setStationStorageError] = useState(initialStationSelection.error);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -249,6 +265,27 @@ function TrainPage() {
       console.error("Unable to save the selected train station:", storageError);
       setStationStorageError("Your train station selection could not be saved in this browser.");
     }
+  }
+
+  function handleStationTabKeyDown(event, currentIndex) {
+    let nextIndex;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      nextIndex = (currentIndex + 1) % stations.length;
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      nextIndex = (currentIndex - 1 + stations.length) % stations.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = stations.length - 1;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+    selectStation(stations[nextIndex].stopId);
+    event.currentTarget.parentElement
+      ?.querySelectorAll('[role="tab"]')[nextIndex]
+      ?.focus();
   }
 
   useEffect(() => {
@@ -293,7 +330,7 @@ function TrainPage() {
 
   return (
     <main className="page">
-      <DashboardHeader activePage="train" />
+      <DashboardHeader activePage="train" onNavigate={onNavigate} />
       <p
         className="last-updated"
         aria-live="polite"
@@ -320,14 +357,18 @@ function TrainPage() {
           </div>
         </div>
         <div className="train-station-tabs" role="tablist" aria-label="Train station">
-          {stations.map((station) => (
+          {stations.map((station, index) => (
             <button
               key={station.stopId}
+              id={`train-station-${station.stopId}`}
               className={`train-station-tab${selectedStopId === station.stopId ? " is-active" : ""}`}
               type="button"
               role="tab"
               aria-selected={selectedStopId === station.stopId}
+              aria-controls="train-departures-panel"
+              tabIndex={selectedStopId === station.stopId ? 0 : -1}
               onClick={() => selectStation(station.stopId)}
+              onKeyDown={(event) => handleStationTabKeyDown(event, index)}
             >
               {station.name}
             </button>
@@ -336,7 +377,14 @@ function TrainPage() {
         {error && <div className="error" role="alert">{error}</div>}
         {stationStorageError && <div className="error" role="alert">{stationStorageError}</div>}
         <p className="train-table-hint">Scroll to view all departure details</p>
-        <div className="train-table-scroll">
+        <div
+          className="train-table-scroll"
+          id="train-departures-panel"
+          role="tabpanel"
+          aria-label={selectedStopId ? undefined : "Train departures"}
+          aria-labelledby={selectedStopId ? `train-station-${selectedStopId}` : undefined}
+          tabIndex={0}
+        >
           <table className="train-table">
             <thead>
               <tr>
@@ -377,7 +425,7 @@ function TrainPage() {
                     <td>
                       <span className="train-destination">{departure.destination || "Train service"}</span>
                       <span className="train-countdown">
-                        {formatTimeUntilDeparture(departure.estimated_departure)}
+                        {formatTimeUntilDeparture(departure.estimated_departure, now)}
                       </span>
                     </td>
                     <td className="train-table-time">{formatDepartureTime(departure.planned_departure)}</td>
@@ -414,7 +462,7 @@ function TrainPage() {
   );
 }
 
-function CarParkPage() {
+function CarParkPage({ onNavigate }) {
   const [initialSuburbSelection] = useState(readStoredSuburbSelection);
   const [carparks, setCarparks] = useState([]);
   const [selectedSuburbs, setSelectedSuburbs] = useState(initialSuburbSelection.selectedSuburbs);
@@ -482,7 +530,11 @@ function CarParkPage() {
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    firstSuburbOptionRef.current?.focus();
+    if (firstSuburbOptionRef.current) {
+      firstSuburbOptionRef.current.focus();
+    } else {
+      document.getElementById("suburb-dialog-close")?.focus();
+    }
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
@@ -533,7 +585,7 @@ function CarParkPage() {
 
   return (
     <main className="page">
-      <DashboardHeader activePage="car-park" />
+      <DashboardHeader activePage="car-park" onNavigate={onNavigate} />
       <p
         className="last-updated"
         aria-live="polite"
@@ -609,6 +661,7 @@ function CarParkPage() {
                 <p>{draftSuburbCount} of {suburbs.length} suburbs selected</p>
               </div>
               <button
+                id="suburb-dialog-close"
                 className="suburb-close"
                 type="button"
                 aria-label="Close suburb selector"
