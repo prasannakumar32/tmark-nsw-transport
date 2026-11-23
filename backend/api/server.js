@@ -18,14 +18,23 @@ const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:9000,http:/
   .map((origin) => origin.trim())
   .filter(Boolean);
 
-function sendJson(res, status, body) {
+function sendJson(res, status, body, headers = {}) {
   const content = JSON.stringify(body);
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
     "Content-Length": Buffer.byteLength(content),
     "Cache-Control": "no-store",
+    ...headers,
   });
   res.end(content);
+}
+
+function sendUpstreamError(res, error, message) {
+  const retryAfterMilliseconds = Number(error.retryAfterMilliseconds);
+  const headers = Number.isFinite(retryAfterMilliseconds) && retryAfterMilliseconds >= 0
+    ? { "Retry-After": String(Math.ceil(retryAfterMilliseconds / 1000)) }
+    : {};
+  return sendJson(res, 502, { error: message }, headers);
 }
 
 function applyCors(req, res) {
@@ -35,6 +44,7 @@ function applyCors(req, res) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Accept");
+    res.setHeader("Access-Control-Expose-Headers", "Retry-After");
   }
 }
 
@@ -62,9 +72,7 @@ async function handleRequest(req, res) {
       });
     } catch (error) {
       console.error("Unable to load car parks from Supabase:", error.message);
-      return sendJson(res, error.status === 401 || error.status === 403 ? 502 : error.status || 500, {
-        error: error.message,
-      });
+      return sendUpstreamError(res, error, "Unable to load car park data from the upstream service.");
     }
   }
 
@@ -79,22 +87,15 @@ async function handleRequest(req, res) {
     }
     try {
       const departures = await readDepartures(stopId);
-      const latestUpdate = departures.reduce((latest, departure) => (
-        departure.updated_at && (!latest || departure.updated_at > latest)
-          ? departure.updated_at
-          : latest
-      ), null);
       return sendJson(res, 200, {
         source: "supabase",
-        fetchedAt: latestUpdate,
+        fetchedAt: new Date().toISOString(),
         stopId,
         departures,
       });
     } catch (error) {
       console.error(`Unable to load train departures for stop ${stopId}:`, error.message);
-      return sendJson(res, error.status === 401 || error.status === 403 ? 502 : error.status || 500, {
-        error: error.message,
-      });
+      return sendUpstreamError(res, error, "Unable to load train departures from the upstream service.");
     }
   }
 

@@ -78,6 +78,9 @@ function cleanFacilityName(value) {
 
 function normaliseFacility(raw, requestedId) {
   const facilityId = String(raw.facility_id ?? raw.tfnsw_facility_id ?? requestedId);
+  if (facilityId !== String(requestedId)) {
+    throw new Error(`Transport NSW returned facility ${facilityId} for request ${requestedId}.`);
+  }
   const totalSpots = requiredNumber(raw.spots, "capacity", facilityId);
   const occupied = requiredNumber(raw.occupancy?.total, "occupancy", facilityId);
   const facilityName = cleanFacilityName(raw.facility_name);
@@ -97,16 +100,13 @@ function normaliseFacility(raw, requestedId) {
   };
 }
 
-async function fetchFacility(facilityId) {
+async function fetchFacilityPayload(facilityId) {
   const apiKey = cleanTfnswApiKey(TFNSW_API_KEY);
   const url = `${TFNSW_BASE_URL}/carpark?facility=${encodeURIComponent(facilityId)}`;
   const payload = await requestJson(url, {
     headers: { Authorization: `apikey ${apiKey}`, Accept: "application/json" },
   }, "Transport NSW");
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    throw new Error(`Transport NSW returned invalid data for facility ${facilityId}.`);
-  }
-  return normaliseFacility(payload, facilityId);
+  return payload;
 }
 
 function toFacilityArray(payload) {
@@ -131,7 +131,23 @@ async function fetchFacilitiesIndividually(ids) {
     if (index > 0) {
       await new Promise((resolve) => setTimeout(resolve, fallbackRequestDelayMilliseconds));
     }
-    facilities.push(await fetchFacility(facilityId));
+    let payload;
+    try {
+      payload = await fetchFacilityPayload(facilityId);
+    } catch (error) {
+      if (![400, 404].includes(error.status)) throw error;
+      console.warn(`Skipping unavailable TfNSW facility ${facilityId}:`, error.message);
+      continue;
+    }
+
+    try {
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+        throw new Error("Transport NSW returned invalid facility data.");
+      }
+      facilities.push(normaliseFacility(payload, facilityId));
+    } catch (error) {
+      console.warn(`Skipping invalid TfNSW facility ${facilityId}:`, error.message);
+    }
   }
   return facilities;
 }
@@ -154,7 +170,12 @@ async function fetchRequestedFacilities() {
   const byId = new Map();
   for (const raw of toFacilityArray(payload)) {
     const id = facilityIdOf(raw);
-    if (id && requestedIds.has(id)) byId.set(id, normaliseFacility(raw, id));
+    if (!id || !requestedIds.has(id)) continue;
+    try {
+      byId.set(id, normaliseFacility(raw, id));
+    } catch (error) {
+      console.warn(`Skipping invalid TfNSW facility ${id}:`, error.message);
+    }
   }
 
   const missingIds = facilityIds.filter((id) => !byId.has(id));
@@ -162,7 +183,10 @@ async function fetchRequestedFacilities() {
     const missingFacilities = await fetchFacilitiesIndividually(missingIds);
     for (const facility of missingFacilities) byId.set(facility.facility_id, facility);
   }
-  return facilityIds.map((id) => byId.get(id));
+  return facilityIds.flatMap((id) => {
+    const facility = byId.get(id);
+    return facility ? [facility] : [];
+  });
 }
 
 let syncInProgress;
@@ -190,6 +214,9 @@ async function syncCarparks() {
   }
   syncInProgress = (async () => {
     const facilities = await fetchRequestedFacilities();
+    if (facilities.length === 0) {
+      throw new Error("TfNSW returned no valid car park facilities to sync.");
+    }
     const startedAt = new Date();
     const started = performance.now();
     try {

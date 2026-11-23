@@ -225,7 +225,9 @@ function TrainPage() {
           const savedStation = payload.stations.find(
             (station) => station.stopId === initialStationSelection.stopId,
           );
-          setSelectedStopId(savedStation?.stopId ?? payload.stations[0]?.stopId ?? "");
+          const stopId = savedStation?.stopId ?? payload.stations[0]?.stopId ?? "";
+          setSelectedStopId(stopId);
+          if (!stopId) setIsLoading(false);
         }
       } catch (loadError) {
         if (isMounted) {
@@ -427,13 +429,18 @@ function CarParkPage() {
   const suburbTriggerRef = useRef(null);
   const firstSuburbOptionRef = useRef(null);
   const disclaimerTriggerRef = useRef(null);
+  const carparkRequestRef = useRef(null);
 
   const loadCarparks = useCallback(async () => {
+    if (carparkRequestRef.current) return;
+    const controller = new AbortController();
+    carparkRequestRef.current = controller;
     setIsLoading(true);
     setError("");
     try {
       const response = await fetch(`${process.env.API_BASE_URL}/api/carparks`, {
         headers: { Accept: "application/json" },
+        signal: controller.signal,
       });
       const payload = await response.json();
       if (!response.ok) {
@@ -443,16 +450,25 @@ function CarParkPage() {
       setFetchedAt(payload.fetchedAt ?? null);
       setHasLoaded(true);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load car park data.");
+      if (loadError.name !== "AbortError") {
+        setError(loadError instanceof Error ? loadError.message : "Unable to load car park data.");
+      }
     } finally {
-      setIsLoading(false);
+      if (carparkRequestRef.current === controller) {
+        carparkRequestRef.current = null;
+        setIsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     loadCarparks();
     const intervalId = window.setInterval(loadCarparks, 12000);
-    return () => window.clearInterval(intervalId);
+    return () => {
+      window.clearInterval(intervalId);
+      carparkRequestRef.current?.abort();
+      carparkRequestRef.current = null;
+    };
   }, [loadCarparks]);
 
   useEffect(() => {

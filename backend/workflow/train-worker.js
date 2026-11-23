@@ -147,59 +147,69 @@ function stopEventsFrom(payload, station) {
 function formatDepartures(payload, station, updatedAt) {
   const stopEvents = stopEventsFrom(payload, station)
     .filter((event) => isTfnswTrain(event?.transportation));
-  return stopEvents.map((event, index) => {
-    const transportation = event?.transportation;
-    const plannedDeparture = asIsoTimestamp(
-      event?.departureTimePlanned,
-      "planned departure time",
-      station.stopId,
-    );
-    if (!plannedDeparture || !transportation || typeof transportation !== "object") {
-      throw new Error(`TfNSW returned an incomplete departure at stop ${station.stopId} (item ${index}).`);
+  return stopEvents.flatMap((event, index) => {
+    try {
+      const transportation = event?.transportation;
+      const plannedDeparture = asIsoTimestamp(
+        event?.departureTimePlanned,
+        "planned departure time",
+        station.stopId,
+      );
+      if (!transportation || typeof transportation !== "object") {
+        throw new Error("TfNSW returned an incomplete departure.");
+      }
+
+      const estimatedDeparture = asIsoTimestamp(
+        event.departureTimeEstimated ?? event.departureTimePlanned,
+        "estimated departure time",
+        station.stopId,
+      );
+      if (Date.parse(estimatedDeparture) < Date.parse(updatedAt)) return [];
+
+      const isCancelled = event.isCancelled === true || event.cancelled === true;
+      const delayMilliseconds = Date.parse(estimatedDeparture) - Date.parse(plannedDeparture);
+      const delayMinutes = Math.round(delayMilliseconds / 60_000);
+      const status = isCancelled
+        ? "Cancelled"
+        : delayMinutes > 0
+          ? `LATE ${delayMinutes} min`
+          : delayMinutes < 0
+            ? `EARLY ${Math.abs(delayMinutes)} min`
+            : "ON TIME";
+      const line = transportation.disassembledName
+        || transportation.number
+        || String(transportation.name ?? "").match(/\b[A-Z]\d{1,2}\b/)?.[0]
+        || "";
+      const destination = transportation.destination?.name
+        ?? transportation.destination
+        ?? "";
+      const platform = propertyValue(event.location?.properties, "platform")
+        ?? propertyValue(event.properties, "platform");
+      const destinationName = String(destination).slice(0, 200);
+      const lineName = String(line).trim().slice(0, 100);
+      const platformName = platformNumber(platform);
+      const speechText = speechTextFrom(event);
+
+      return [{
+        UpdatedAt: updatedAt,
+        Line: lineName || null,
+        Destination: destinationName || null,
+        Status: status,
+        Platform: platformName,
+        Station: station.name.slice(0, 120),
+        SpeechText: speechText.slice(0, 2000),
+        ScheduledDateTime: plannedDeparture,
+        EstimatedDateTime: estimatedDeparture,
+        StopID: station.stopId,
+      }];
+    } catch (error) {
+      console.warn(
+        `[Train worker] Skipping invalid departure ${index} for ${station.name}:`,
+        error.message,
+      );
+      return [];
     }
-
-    const estimatedDeparture = asIsoTimestamp(
-      event.departureTimeEstimated ?? event.departureTimePlanned,
-      "estimated departure time",
-      station.stopId,
-    );
-    const isCancelled = event.isCancelled === true || event.cancelled === true;
-    const delayMilliseconds = Date.parse(estimatedDeparture) - Date.parse(plannedDeparture);
-    const delayMinutes = Math.round(delayMilliseconds / 60_000);
-    const status = isCancelled
-      ? "Cancelled"
-      : delayMinutes > 0
-        ? `LATE ${delayMinutes} min`
-        : delayMinutes < 0
-          ? `EARLY ${Math.abs(delayMinutes)} min`
-          : "ON TIME";
-    const line = transportation.disassembledName
-      || transportation.number
-      || String(transportation.name ?? "").match(/\b[A-Z]\d{1,2}\b/)?.[0]
-      || "";
-    const destination = transportation.destination?.name
-      ?? transportation.destination
-      ?? "";
-    const platform = propertyValue(event.location?.properties, "platform")
-      ?? propertyValue(event.properties, "platform");
-    const destinationName = String(destination).slice(0, 200);
-    const lineName = String(line).trim().slice(0, 100);
-    const platformName = platformNumber(platform);
-    const speechText = speechTextFrom(event);
-
-    return {
-      UpdatedAt: updatedAt,
-      Line: lineName || null,
-      Destination: destinationName || null,
-      Status: status,
-      Platform: platformName,
-      Station: station.name.slice(0, 120),
-      SpeechText: speechText.slice(0, 2000),
-      ScheduledDateTime: plannedDeparture,
-      EstimatedDateTime: estimatedDeparture,
-      StopID: station.stopId,
-    };
-  }).filter(({ EstimatedDateTime }) => Date.parse(EstimatedDateTime) >= Date.parse(updatedAt));
+  });
 }
 
 async function fetchDepartures(station) {
@@ -237,21 +247,28 @@ function updateRateLimitBackoff(error) {
 }
 
 async function syncStations() {
+  let allStationsSynced = true;
   for (const station of config.stations) {
-    if (Date.now() < rateLimitUntil) break;
+    if (Date.now() < rateLimitUntil) {
+      allStationsSynced = false;
+      break;
+    }
     const scannedAt = new Date().toISOString();
     try {
       const payload = await fetchDepartures(station);
       const departures = formatDepartures(payload, station, scannedAt);
       await syncDepartures(station.stopId, scannedAt, departures);
-      rateLimitCount = 0;
-      rateLimitUntil = 0;
       console.info(`[Train worker] Synced ${departures.length} departures for ${station.name}.`);
     } catch (error) {
+      allStationsSynced = false;
       updateRateLimitBackoff(error);
       console.error(`[Train worker] Sync failed for ${station.name}:`, error.message);
       if (error.status === 429) break;
     }
+  }
+  if (allStationsSynced) {
+    rateLimitCount = 0;
+    rateLimitUntil = 0;
   }
 }
 
